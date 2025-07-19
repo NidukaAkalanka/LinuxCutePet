@@ -17,7 +17,7 @@
                Stretch="Uniform"
                HorizontalAlignment="Center" 
                VerticalAlignment="Center"
-               Source="avares://PetViewerLinux/Assets/pet.png"/>
+               Source="avares://PetViewerLinux/Assets/000.png"/>
         
         <!-- Changed SizeBottomRight to SizeNWSE for the resize grip -->
         <Rectangle Name="ResizeGrip" 
