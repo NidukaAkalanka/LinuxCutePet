@@ -96,7 +96,7 @@ namespace PetViewerLinux
             // Initialize the main animation timer
             _animationTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(100) // 100ms between frames for smoother animation
+                Interval = TimeSpan.FromMilliseconds(200) // 100ms between frames for smoother animation
             };
             _animationTimer.Tick += AnimationTimer_Tick;
             
@@ -327,6 +327,27 @@ namespace PetViewerLinux
                 _autoTriggerTimer.Interval = TimeSpan.FromSeconds(GetRandomIdleTime());
             }
         }
+
+        private void HandleClick(Point clickPosition)
+        {
+            // Determine if click was on head or body
+            // Assuming top 1/3 of window is head, rest is body
+            double headThreshold = this.Height / 3.0;
+
+            if (clickPosition.Y <= headThreshold)
+            {
+                // Head click
+                _autoTriggerTimer.Stop();
+                StartAnimation(AnimationState.ClickTriggered, "clickTriggered/click_HEAD");
+            }
+            else
+            {
+                // Body click - randomly select from 3 body click animations
+                _autoTriggerTimer.Stop();
+                StartAnimation(AnimationState.ClickTriggered, GetRandomBodyClickPath());
+            }
+        }
+
         
         private void ClickDragTimer_Tick(object? sender, EventArgs e)
         {
@@ -361,6 +382,7 @@ namespace PetViewerLinux
             }
         }
         
+        
         private void MainGrid_PointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (_isDragging)
@@ -370,29 +392,14 @@ namespace PetViewerLinux
                 _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
                 StartAnimation(AnimationState.DragEnd);
             }
-            
+            else if (_isWaitingForDragOrClick)
+            {
+                // This is a click (pointer was pressed and released without significant movement)
+                HandleClick(_clickPosition);
+            }
+
             _isWaitingForDragOrClick = false;
             _clickDragTimer.Stop();
-        }
-        
-        private void HandleClick(Point clickPosition)
-        {
-            // Determine if click was on head or body
-            // Assuming top 1/3 of window is head, rest is body
-            double headThreshold = this.Height / 3.0;
-            
-            if (clickPosition.Y <= headThreshold)
-            {
-                // Head click
-                _autoTriggerTimer.Stop();
-                StartAnimation(AnimationState.ClickTriggered, "clickTriggered/click_HEAD");
-            }
-            else
-            {
-                // Body click - randomly select from 3 body click animations
-                _autoTriggerTimer.Stop();
-                StartAnimation(AnimationState.ClickTriggered, GetRandomBodyClickPath());
-            }
         }
         
         private void HandleDragStart()
@@ -428,8 +435,8 @@ namespace PetViewerLinux
             };
             
             contextMenu.Items.Add(exitItem);
-            contextMenu.PlacementTarget = this;
-            contextMenu.Open();
+            //contextMenu.PlacementTarget = this;
+            contextMenu.Open(this);
         }
 
         private void ResizeGrip_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -456,7 +463,12 @@ namespace PetViewerLinux
             {
                 _isResizing = false;
             }
-            
+            else if (_isWaitingForDragOrClick)
+            {
+                // This is a click (pointer was pressed and released without significant movement)
+                HandleClick(_clickPosition);
+            }
+
             _isWaitingForDragOrClick = false;
             _clickDragTimer.Stop();
         }
