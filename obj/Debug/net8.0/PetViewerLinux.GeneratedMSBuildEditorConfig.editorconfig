@@ -15,12 +15,12 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = PetViewerLinux
-build_property.ProjectDir = /home/niduka/LinuxCutePet/
+build_property.ProjectDir = /home/runner/work/LinuxCutePet/LinuxCutePet/
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 
-[/home/niduka/LinuxCutePet/App.axaml]
+[/home/runner/work/LinuxCutePet/LinuxCutePet/App.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[/home/niduka/LinuxCutePet/MainWindow.axaml]
+[/home/runner/work/LinuxCutePet/LinuxCutePet/MainWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml

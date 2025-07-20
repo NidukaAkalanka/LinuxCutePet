@@ -1416,19 +1416,19 @@
     ]
   },
   "packageFolders": {
-    "/home/niduka/.nuget/packages/": {}
+    "/home/runner/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/niduka/LinuxCutePet/PetViewerLinux.csproj",
+      "projectUniqueName": "/home/runner/work/LinuxCutePet/LinuxCutePet/PetViewerLinux.csproj",
       "projectName": "PetViewerLinux",
-      "projectPath": "/home/niduka/LinuxCutePet/PetViewerLinux.csproj",
-      "packagesPath": "/home/niduka/.nuget/packages/",
-      "outputPath": "/home/niduka/LinuxCutePet/obj/",
+      "projectPath": "/home/runner/work/LinuxCutePet/LinuxCutePet/PetViewerLinux.csproj",
+      "packagesPath": "/home/runner/.nuget/packages/",
+      "outputPath": "/home/runner/work/LinuxCutePet/LinuxCutePet/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "/home/niduka/.nuget/NuGet/NuGet.Config"
+        "/home/runner/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
@@ -1446,11 +1446,6 @@
         "warnAsError": [
           "NU1605"
         ]
-      },
-      "restoreAuditProperties": {
-        "enableAudit": "true",
-        "auditLevel": "low",
-        "auditMode": "direct"
       }
     },
     "frameworks": {
@@ -1494,16 +1489,8 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/home/niduka/.dotnet/sdk/8.0.412/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.117/PortableRuntimeIdentifierGraph.json"
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1900",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Error occurred while getting package vulnerability data: Unable to load the service index for source https://api.nuget.org/v3/index.json."
-    }
-  ]
+  }
 }
