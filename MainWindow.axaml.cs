@@ -274,6 +274,8 @@ namespace PetViewerLinux
                 if (_isLooping)
                 {
                     _currentFrameIndex = 0; // Reset to beginning for loop
+                    // Don't display here - let the next timer tick handle frame 0 display
+                    // This ensures consistent timing between all frames including loop transition
                 }
                 else
                 {
