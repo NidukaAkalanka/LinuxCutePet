@@ -243,7 +243,8 @@ namespace PetViewerLinux
                 "autoTriggered/squat",
                 "autoTriggered/tennis",
                 "autoTriggered/think",
-                "autoTriggered/yawning"
+                "autoTriggered/yawning",
+                "autoTriggered/down"
             };
             
             return autoTriggeredFolders[_random.Next(autoTriggeredFolders.Length)];
