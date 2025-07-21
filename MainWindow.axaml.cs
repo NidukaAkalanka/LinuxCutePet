@@ -22,6 +22,9 @@ namespace PetViewerLinux
         DragTriggered,
         DragLoop,
         DragEnd,
+        Sleep,
+        SleepLoop,
+        SleepEnd,
         Shutdown
     }
 
@@ -44,6 +47,7 @@ namespace PetViewerLinux
         private AnimationState _nextState = AnimationState.Idle;
         private bool _isLooping = false;
         private Random _random = new Random();
+        private bool _isSleeping = false;
         
         // Click detection
         private Point _clickPosition;
@@ -200,6 +204,22 @@ namespace PetViewerLinux
                     animationPath = "dragTriggered/loopOut";
                     _nextState = AnimationState.Idle;
                     break;
+                case AnimationState.Sleep:
+                    animationPath = "menuTriggered/sleep";
+                    _nextState = AnimationState.SleepLoop;
+                    break;
+    
+                case AnimationState.SleepLoop:
+                    animationPath = "menuTriggered/sleep/loop";
+                    _isLooping = true;
+                    _isSleeping = true;
+                    break;
+                    
+                case AnimationState.SleepEnd:
+                    animationPath = "menuTriggered/sleep/loopOut";
+                    _nextState = AnimationState.Idle;
+                    _isSleeping = false;
+                    break;
                     
                 case AnimationState.Shutdown:
                     animationPath = "shutdown";
@@ -316,8 +336,8 @@ namespace PetViewerLinux
         
         private void AutoTriggerTimer_Tick(object? sender, EventArgs e)
         {
-            // Only trigger if currently in idle state
-            if (_currentState == AnimationState.Idle)
+            // Only trigger if currently in idle state and not sleeping
+            if (_currentState == AnimationState.Idle && !_isSleeping)
             {
                 _autoTriggerTimer.Stop();
                 StartAnimation(AnimationState.AutoTriggered);
@@ -427,6 +447,30 @@ namespace PetViewerLinux
         private void ShowContextMenu()
         {
             var contextMenu = new ContextMenu();
+            
+            if (!_isSleeping)
+            {
+                var sleepItem = new MenuItem { Header = "Sleep" };
+                sleepItem.Click += (s, e) =>
+                {
+                    _animationTimer.Stop();
+                    _autoTriggerTimer.Stop();
+                    StartAnimation(AnimationState.Sleep);
+                };
+                contextMenu.Items.Add(sleepItem);
+            }
+            else
+            {
+                var awakeItem = new MenuItem { Header = "Awake" };
+                awakeItem.Click += (s, e) =>
+                {
+                    _animationTimer.Stop();
+                    StartAnimation(AnimationState.SleepEnd);
+                };
+                contextMenu.Items.Add(awakeItem);
+            }
+            
+            // Always have exit option
             var exitItem = new MenuItem { Header = "Exit" };
             exitItem.Click += (s, e) =>
             {
@@ -436,7 +480,6 @@ namespace PetViewerLinux
             };
             
             contextMenu.Items.Add(exitItem);
-            //contextMenu.PlacementTarget = this;
             contextMenu.Open(this);
         }
 
