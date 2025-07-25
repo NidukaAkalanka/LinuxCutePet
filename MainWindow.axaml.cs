@@ -22,6 +22,9 @@ namespace PetViewerLinux
         DragTriggered,
         DragLoop,
         DragEnd,
+        RightDragTriggered,
+        RightDragLoop,
+        RightDragEnd,
         ActivityStart,
         ActivityLoop,
         ActivityEnd,
@@ -55,10 +58,19 @@ namespace PetViewerLinux
         // Click detection
         private Point _clickPosition;
         private bool _isWaitingForDragOrClick = false;
+        
+        // Right-click drag detection
+        private Point _rightClickPosition;
+        private bool _isWaitingForRightDragOrClick = false;
+        private bool _isRightDragging = false;
+        private DispatcherTimer _rightClickDragTimer = null!;
 
         public MainWindow()
         {
             InitializeComponent();
+
+            // Set window to stay on top
+            this.Topmost = true;
 
             // Initialize animation system
             InitializeAnimationSystem();
@@ -123,6 +135,13 @@ namespace PetViewerLinux
                 Interval = TimeSpan.FromMilliseconds(500) // 500ms delay to detect drag vs click
             };
             _clickDragTimer.Tick += ClickDragTimer_Tick;
+            
+            // Initialize right-click drag detection timer
+            _rightClickDragTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500) // 500ms delay to detect drag vs click
+            };
+            _rightClickDragTimer.Tick += RightClickDragTimer_Tick;
         }
         
         private void InitializePetActivities()
@@ -314,6 +333,21 @@ namespace PetViewerLinux
                     _nextState = AnimationState.Idle;
                     break;
                     
+                case AnimationState.RightDragTriggered:
+                    // Show the initial right drag frame
+                    ShowSingleFrame("rightDragTriggered/000.png");
+                    return;
+                    
+                case AnimationState.RightDragLoop:
+                    animationPath = "rightDragTriggered/loop";
+                    _isLooping = true;
+                    break;
+                    
+                case AnimationState.RightDragEnd:
+                    animationPath = "rightDragTriggered/loopOut";
+                    _nextState = AnimationState.Idle;
+                    break;
+                    
                 case AnimationState.ActivityStart:
                     if (_currentActivity != null)
                     {
@@ -494,25 +528,35 @@ namespace PetViewerLinux
             _isWaitingForDragOrClick = false;
             
             // If we reach here, it's a click (not a drag)
-            HandleClick(_clickPosition);
+            if (_currentActivity == null)
+            {
+                HandleClick(_clickPosition);
+            }
+        }
+        
+        private void RightClickDragTimer_Tick(object? sender, EventArgs e)
+        {
+            _rightClickDragTimer.Stop();
+            _isWaitingForRightDragOrClick = false;
+            
+            // If we reach here, it's a right click (not a drag) - show context menu
+            ShowContextMenu();
         }
 
         private void MainGrid_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
             var point = e.GetCurrentPoint(this);
-            var pt = e.GetCurrentPoint(this);
-            if (_currentActivity != null && pt.Properties.IsLeftButtonPressed)
-            {
-                return;
-            }
             
             if (point.Properties.IsRightButtonPressed)
-                {
-                    // Show context menu
-                    ShowContextMenu();
-                    e.Handled = true;
-                    return;
-                }
+            {
+                _rightClickPosition = e.GetPosition(this);
+                _isWaitingForRightDragOrClick = true;
+                
+                // Start timer to detect if this becomes a drag or remains a click
+                _rightClickDragTimer.Start();
+                e.Handled = true;
+                return;
+            }
             
             if (point.Properties.IsLeftButtonPressed)
             {
@@ -533,38 +577,88 @@ namespace PetViewerLinux
             {
                 // End drag sequence
                 _isDragging = false;
-                _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
-                StartAnimation(AnimationState.DragEnd);
+                if (_currentActivity == null)
+                {
+                    _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
+                    StartAnimation(AnimationState.DragEnd);
+                }
+            }
+            else if (_isRightDragging)
+            {
+                // End right drag sequence
+                _isRightDragging = false;
+                if (_currentActivity == null)
+                {
+                    _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
+                    StartAnimation(AnimationState.RightDragEnd);
+                }
             }
             else if (_isWaitingForDragOrClick)
             {
-                // This is a click (pointer was pressed and released without significant movement)
-                HandleClick(_clickPosition);
+                // This is a left click (pointer was pressed and released without significant movement)
+                if (_currentActivity == null)
+                {
+                    HandleClick(_clickPosition);
+                }
+            }
+            else if (_isWaitingForRightDragOrClick)
+            {
+                // This is a right click - show context menu
+                ShowContextMenu();
             }
 
             _isWaitingForDragOrClick = false;
+            _isWaitingForRightDragOrClick = false;
             _clickDragTimer.Stop();
+            _rightClickDragTimer.Stop();
         }
         
         private void HandleDragStart()
         {
             _isDragging = true;
-            _autoTriggerTimer.Stop();
-            
-            // Show initial drag frame, then start drag loop
-            StartAnimation(AnimationState.DragTriggered);
-            
-            // Start drag loop after a brief delay
-            var delayTimer = new DispatcherTimer
+            if (_currentActivity == null)
             {
-                Interval = TimeSpan.FromMilliseconds(200)
-            };
-            delayTimer.Tick += (s, e) =>
+                _autoTriggerTimer.Stop();
+                
+                // Show initial drag frame, then start drag loop
+                StartAnimation(AnimationState.DragTriggered);
+                
+                // Start drag loop after a brief delay
+                var delayTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(200)
+                };
+                delayTimer.Tick += (s, e) =>
+                {
+                    delayTimer.Stop();
+                    StartAnimation(AnimationState.DragLoop);
+                };
+                delayTimer.Start();
+            }
+        }
+        
+        private void HandleRightDragStart()
+        {
+            _isRightDragging = true;
+            if (_currentActivity == null)
             {
-                delayTimer.Stop();
-                StartAnimation(AnimationState.DragLoop);
-            };
-            delayTimer.Start();
+                _autoTriggerTimer.Stop();
+                
+                // Show initial right drag frame, then start right drag loop
+                StartAnimation(AnimationState.RightDragTriggered);
+                
+                // Start right drag loop after a brief delay
+                var delayTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(200)
+                };
+                delayTimer.Tick += (s, e) =>
+                {
+                    delayTimer.Stop();
+                    StartAnimation(AnimationState.RightDragLoop);
+                };
+                delayTimer.Start();
+            }
         }
         
         private void StartActivity(string activityName)
@@ -593,14 +687,24 @@ namespace PetViewerLinux
             
             if (_currentActivity == null)
             {
-                // Show all available activities
+                // Create Activities submenu
+                var activitiesItem = new MenuItem { Header = "Activities" };
                 foreach (var activity in _availableActivities.Values)
                 {
                     var activityItem = new MenuItem { Header = activity.StartMenuText };
                     var activityName = activity.Name; // Capture for closure
                     activityItem.Click += (s, e) => StartActivity(activityName);
-                    contextMenu.Items.Add(activityItem);
+                    activitiesItem.Items.Add(activityItem);
                 }
+                contextMenu.Items.Add(activitiesItem);
+                
+                // Create Settings submenu (dummy for now)
+                var settingsItem = new MenuItem { Header = "Settings" };
+                var setting1Item = new MenuItem { Header = "Option 1" };
+                var setting2Item = new MenuItem { Header = "Option 2" };
+                settingsItem.Items.Add(setting1Item);
+                settingsItem.Items.Add(setting2Item);
+                contextMenu.Items.Add(settingsItem);
             }
             else
             {
@@ -636,16 +740,25 @@ namespace PetViewerLinux
 
         private void Window_PointerReleased(object? sender, PointerReleasedEventArgs e)
         {
-            if (_currentActivity != null)
-            {
-                return;
-            }
             if (_isDragging)
             {
                 // End drag sequence
                 _isDragging = false;
-                _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
-                StartAnimation(AnimationState.DragEnd);
+                if (_currentActivity == null)
+                {
+                    _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
+                    StartAnimation(AnimationState.DragEnd);
+                }
+            }
+            else if (_isRightDragging)
+            {
+                // End right drag sequence
+                _isRightDragging = false;
+                if (_currentActivity == null)
+                {
+                    _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
+                    StartAnimation(AnimationState.RightDragEnd);
+                }
             }
             else if (_isResizing)
             {
@@ -653,22 +766,31 @@ namespace PetViewerLinux
             }
             else if (_isWaitingForDragOrClick)
             {
-                // This is a click (pointer was pressed and released without significant movement)
-                HandleClick(_clickPosition);
+                // This is a left click (pointer was pressed and released without significant movement)
+                if (_currentActivity == null)
+                {
+                    HandleClick(_clickPosition);
+                }
+            }
+            else if (_isWaitingForRightDragOrClick)
+            {
+                // This is a right click - show context menu
+                ShowContextMenu();
             }
 
             _isWaitingForDragOrClick = false;
+            _isWaitingForRightDragOrClick = false;
             _clickDragTimer.Stop();
+            _rightClickDragTimer.Stop();
         }
 
         private void Window_PointerMoved(object? sender, PointerEventArgs e)
         {
-            if (_currentActivity != null) return;
             var currentPosition = e.GetPosition(this);
             
             if (_isWaitingForDragOrClick)
             {
-                // Check if mouse has moved enough to consider it a drag
+                // Check if mouse has moved enough to consider it a left drag
                 var deltaX = Math.Abs(currentPosition.X - _startPosition.X);
                 var deltaY = Math.Abs(currentPosition.Y - _startPosition.Y);
                 
@@ -680,9 +802,25 @@ namespace PetViewerLinux
                 }
             }
             
-            if (_isDragging)
+            if (_isWaitingForRightDragOrClick)
             {
-                var delta = currentPosition - _startPosition;
+                // Check if mouse has moved enough to consider it a right drag
+                var deltaX = Math.Abs(currentPosition.X - _rightClickPosition.X);
+                var deltaY = Math.Abs(currentPosition.Y - _rightClickPosition.Y);
+                
+                if (deltaX > 5 || deltaY > 5) // 5 pixel threshold for drag detection
+                {
+                    _rightClickDragTimer.Stop();
+                    _isWaitingForRightDragOrClick = false;
+                    HandleRightDragStart();
+                }
+            }
+            
+            if (_isDragging || _isRightDragging)
+            {
+                var delta = _isDragging ? 
+                    currentPosition - _startPosition : 
+                    currentPosition - _rightClickPosition;
                 
                 this.Position = new PixelPoint(
                     this.Position.X + (int)delta.X,

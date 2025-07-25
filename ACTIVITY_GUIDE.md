@@ -72,7 +72,8 @@ In `MainWindow.axaml.cs`, modify the `InitializePetActivities()` method to add y
 ### User Interaction
 - **Right-click**: Opens context menu
 - **Left-click during activity**: Ignored (prevents accidental interruption)
-- **Drag during activity**: Disabled
+- **Drag during activity**: Enabled (allows moving the pet without interrupting activity)
+- **Right-click drag**: Triggers special right-drag animation (when not in activity)
 
 ## Technical Details
 
