@@ -52,40 +52,41 @@ namespace PetViewerLinux
         // Click detection
         private Point _clickPosition;
         private bool _isWaitingForDragOrClick = false;
+        private bool _isPetSleeping = false;
 
         public MainWindow()
         {
             InitializeComponent();
-            
+
             // Initialize animation system
             InitializeAnimationSystem();
-            
+
             // Get a reference to UI elements
             var mainGrid = this.FindControl<Grid>("MainGrid");
             var resizeGrip = this.FindControl<Rectangle>("ResizeGrip");
             _petImage = this.FindControl<Image>("PetImage");
-            
+
             // Add null checks to avoid the CS8602 warning
             if (mainGrid != null)
             {
                 // Make the window movable by dragging anywhere
                 mainGrid.PointerPressed += MainGrid_PointerPressed;
                 mainGrid.PointerReleased += MainGrid_PointerReleased;
-                
+
                 // Add right-click context menu
                 mainGrid.DoubleTapped += (s, e) => this.Close();
             }
-            
+
             // Set up resize functionality
             if (resizeGrip != null)
             {
                 resizeGrip.PointerPressed += ResizeGrip_PointerPressed;
             }
-            
+
             // Add window-level pointer events
             this.PointerReleased += Window_PointerReleased;
             this.PointerMoved += Window_PointerMoved;
-            
+
             // Start with startup animation
             StartAnimation(AnimationState.Startup);
         }
@@ -382,14 +383,19 @@ namespace PetViewerLinux
         private void MainGrid_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
             var point = e.GetCurrentPoint(this);
-            
-            if (point.Properties.IsRightButtonPressed)
+            var pt = e.GetCurrentPoint(this);
+            if (_isSleeping && pt.Properties.IsLeftButtonPressed)
             {
-                // Show context menu
-                ShowContextMenu();
-                e.Handled = true;
                 return;
             }
+            
+            if (point.Properties.IsRightButtonPressed)
+                {
+                    // Show context menu
+                    ShowContextMenu();
+                    e.Handled = true;
+                    return;
+                }
             
             if (point.Properties.IsLeftButtonPressed)
             {
@@ -496,6 +502,10 @@ namespace PetViewerLinux
 
         private void Window_PointerReleased(object? sender, PointerReleasedEventArgs e)
         {
+            if (_isSleeping)
+            {
+                return;
+            }
             if (_isDragging)
             {
                 // End drag sequence
@@ -519,6 +529,7 @@ namespace PetViewerLinux
 
         private void Window_PointerMoved(object? sender, PointerEventArgs e)
         {
+            if (_isSleeping) return;
             var currentPosition = e.GetPosition(this);
             
             if (_isWaitingForDragOrClick)
