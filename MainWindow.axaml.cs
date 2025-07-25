@@ -22,9 +22,9 @@ namespace PetViewerLinux
         DragTriggered,
         DragLoop,
         DragEnd,
-        Sleep,
-        SleepLoop,
-        SleepEnd,
+        ActivityStart,
+        ActivityLoop,
+        ActivityEnd,
         Shutdown
     }
 
@@ -47,12 +47,14 @@ namespace PetViewerLinux
         private AnimationState _nextState = AnimationState.Idle;
         private bool _isLooping = false;
         private Random _random = new Random();
-        private bool _isSleeping = false;
+        
+        // PetActivity system
+        private PetActivity? _currentActivity = null;
+        private Dictionary<string, PetActivity> _availableActivities = null!;
         
         // Click detection
         private Point _clickPosition;
         private bool _isWaitingForDragOrClick = false;
-        private bool _isPetSleeping = false;
 
         public MainWindow()
         {
@@ -60,6 +62,9 @@ namespace PetViewerLinux
 
             // Initialize animation system
             InitializeAnimationSystem();
+            
+            // Initialize pet activities
+            InitializePetActivities();
 
             // Get a reference to UI elements
             var mainGrid = this.FindControl<Grid>("MainGrid");
@@ -74,7 +79,7 @@ namespace PetViewerLinux
                 mainGrid.PointerReleased += MainGrid_PointerReleased;
 
                 // Add right-click context menu
-                mainGrid.DoubleTapped += (s, e) => this.Close();
+                // mainGrid.DoubleTapped += (s, e) => this.Close();
             }
 
             // Set up resize functionality
@@ -118,6 +123,49 @@ namespace PetViewerLinux
                 Interval = TimeSpan.FromMilliseconds(500) // 500ms delay to detect drag vs click
             };
             _clickDragTimer.Tick += ClickDragTimer_Tick;
+        }
+        
+        private void InitializePetActivities()
+        {
+            _availableActivities = new Dictionary<string, PetActivity>
+            {
+                {
+                    "sleep",
+                    new PetActivity(
+                        "sleep",
+                        "Sleep",
+                        "Wake up",
+                        "menuTriggered/sleep",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                },
+                {
+                    "study",
+                    new PetActivity(
+                        "study",
+                        "Study",
+                        "Stop Studying",
+                        "menuTriggered/study",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                },
+                {
+                    "stream",
+                    new PetActivity(
+                        "steram",
+                        "Stream",
+                        "End Stream",
+                        "menuTriggered/stream",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                }
+            };
         }
         
         private double GetRandomIdleTime()
@@ -205,21 +253,30 @@ namespace PetViewerLinux
                     animationPath = "dragTriggered/loopOut";
                     _nextState = AnimationState.Idle;
                     break;
-                case AnimationState.Sleep:
-                    animationPath = "menuTriggered/sleep";
-                    _nextState = AnimationState.SleepLoop;
+                    
+                case AnimationState.ActivityStart:
+                    if (_currentActivity != null)
+                    {
+                        animationPath = _currentActivity.AnimationPath;
+                        _nextState = AnimationState.ActivityLoop;
+                    }
                     break;
     
-                case AnimationState.SleepLoop:
-                    animationPath = "menuTriggered/sleep/loop";
-                    _isLooping = true;
-                    _isSleeping = true;
+                case AnimationState.ActivityLoop:
+                    if (_currentActivity != null)
+                    {
+                        animationPath = $"{_currentActivity.AnimationPath}/loop";
+                        _isLooping = true;
+                    }
                     break;
                     
-                case AnimationState.SleepEnd:
-                    animationPath = "menuTriggered/sleep/loopOut";
-                    _nextState = AnimationState.Idle;
-                    _isSleeping = false;
+                case AnimationState.ActivityEnd:
+                    if (_currentActivity != null)
+                    {
+                        animationPath = $"{_currentActivity.AnimationPath}/loopOut";
+                        _nextState = AnimationState.Idle;
+                        _currentActivity = null;
+                    }
                     break;
                     
                 case AnimationState.Shutdown:
@@ -337,8 +394,8 @@ namespace PetViewerLinux
         
         private void AutoTriggerTimer_Tick(object? sender, EventArgs e)
         {
-            // Only trigger if currently in idle state and not sleeping
-            if (_currentState == AnimationState.Idle && !_isSleeping)
+            // Only trigger if currently in idle state and no activity is active
+            if (_currentState == AnimationState.Idle && _currentActivity == null)
             {
                 _autoTriggerTimer.Stop();
                 StartAnimation(AnimationState.AutoTriggered);
@@ -384,7 +441,7 @@ namespace PetViewerLinux
         {
             var point = e.GetCurrentPoint(this);
             var pt = e.GetCurrentPoint(this);
-            if (_isSleeping && pt.Properties.IsLeftButtonPressed)
+            if (_currentActivity != null && pt.Properties.IsLeftButtonPressed)
             {
                 return;
             }
@@ -450,30 +507,47 @@ namespace PetViewerLinux
             delayTimer.Start();
         }
         
+        private void StartActivity(string activityName)
+        {
+            if (_availableActivities.TryGetValue(activityName, out var activity))
+            {
+                _currentActivity = activity;
+                _animationTimer.Stop();
+                _autoTriggerTimer.Stop();
+                StartAnimation(AnimationState.ActivityStart);
+            }
+        }
+        
+        private void StopActivity()
+        {
+            if (_currentActivity != null)
+            {
+                _animationTimer.Stop();
+                StartAnimation(AnimationState.ActivityEnd);
+            }
+        }
+        
         private void ShowContextMenu()
         {
             var contextMenu = new ContextMenu();
             
-            if (!_isSleeping)
+            if (_currentActivity == null)
             {
-                var sleepItem = new MenuItem { Header = "Sleep" };
-                sleepItem.Click += (s, e) =>
+                // Show all available activities
+                foreach (var activity in _availableActivities.Values)
                 {
-                    _animationTimer.Stop();
-                    _autoTriggerTimer.Stop();
-                    StartAnimation(AnimationState.Sleep);
-                };
-                contextMenu.Items.Add(sleepItem);
+                    var activityItem = new MenuItem { Header = activity.StartMenuText };
+                    var activityName = activity.Name; // Capture for closure
+                    activityItem.Click += (s, e) => StartActivity(activityName);
+                    contextMenu.Items.Add(activityItem);
+                }
             }
             else
             {
-                var awakeItem = new MenuItem { Header = "Awake" };
-                awakeItem.Click += (s, e) =>
-                {
-                    _animationTimer.Stop();
-                    StartAnimation(AnimationState.SleepEnd);
-                };
-                contextMenu.Items.Add(awakeItem);
+                // Show option to stop current activity
+                var stopItem = new MenuItem { Header = _currentActivity.StopMenuText };
+                stopItem.Click += (s, e) => StopActivity();
+                contextMenu.Items.Add(stopItem);
             }
             
             // Always have exit option
@@ -502,7 +576,7 @@ namespace PetViewerLinux
 
         private void Window_PointerReleased(object? sender, PointerReleasedEventArgs e)
         {
-            if (_isSleeping)
+            if (_currentActivity != null)
             {
                 return;
             }
@@ -529,7 +603,7 @@ namespace PetViewerLinux
 
         private void Window_PointerMoved(object? sender, PointerEventArgs e)
         {
-            if (_isSleeping) return;
+            if (_currentActivity != null) return;
             var currentPosition = e.GetPosition(this);
             
             if (_isWaitingForDragOrClick)
