@@ -156,7 +156,7 @@ namespace PetViewerLinux
                 {
                     "stream",
                     new PetActivity(
-                        "steram",
+                        "stream",
                         "Stream",
                         "End Stream",
                         "menuTriggered/stream",
@@ -164,7 +164,67 @@ namespace PetViewerLinux
                         AnimationState.ActivityLoop,
                         AnimationState.ActivityEnd
                     )
-                }
+                },
+                {
+                    "clean",
+                    new PetActivity(
+                        "clean",
+                        "Screen-cleaning",
+                        "Stop Cleaning",
+                        "menuTriggered/clean",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                },
+                {
+                    "calligraphy",
+                    new PetActivity(
+                        "calligraphy",
+                        "Calligraphy",
+                        "Stop Calligraphy",
+                        "menuTriggered/calligraphy",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                },
+                {
+                    "game",
+                    new PetActivity(
+                        "game",
+                        "Gaming",
+                        "Stop Gaming",
+                        "menuTriggered/game",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                },
+                {
+                    "rope",
+                    new PetActivity(
+                        "rope",
+                        "Rope-Skipping",
+                        "Stop Skipping",
+                        "menuTriggered/rope",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                },
+                {
+                    "paperwork",
+                    new PetActivity(
+                        "paperwork",
+                        "Do Taxes",
+                        "Too much Tax",
+                        "menuTriggered/paperwork",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                },
             };
         }
         
