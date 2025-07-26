@@ -88,7 +88,7 @@ namespace PetViewerLinux
         private PixelRect _screenBounds;
         private DispatcherTimer _positionUpdateTimer = null!;
         private string? _currentMoveAnimationPath = null;
-        private int _moveSpeed = 2; // pixels per frame during movement
+        private int _moveSpeed = 3; // pixels per frame during movement
         private bool _isMoving = false;
 
         public MainWindow()
@@ -299,22 +299,22 @@ namespace PetViewerLinux
         
         private bool IsAtTopEdge()
         {
-            return this.Position.Y <= _screenBounds.Y + 50; // Within 50 pixels of top edge
+            return this.Position.Y <= _screenBounds.Y + 100; // Within 100 pixels of top edge
         }
         
         private bool IsAtLeftEdge()
         {
-            return this.Position.X <= _screenBounds.X + 50; // Within 50 pixels of left edge
+            return this.Position.X <= _screenBounds.X + 100; // Within 100 pixels of left edge
         }
         
         private bool IsAtRightEdge()
         {
-            return this.Position.X >= _screenBounds.Right - this.Width - 50; // Within 50 pixels of right edge
+            return this.Position.X >= _screenBounds.Right - this.Width - 100; // Within 100 pixels of right edge
         }
         
         private bool IsAtBottomEdge()
         {
-            return this.Position.Y >= _screenBounds.Bottom - this.Height - 50; // Within 50 pixels of bottom edge
+            return this.Position.Y >= _screenBounds.Bottom - this.Height - 100; // Within 100 pixels of bottom edge
         }
         
         private bool IsCloserToLeft()
@@ -340,20 +340,44 @@ namespace PetViewerLinux
                                        : "autoTriggered/move/horizontal/top/rightToLeft/swing";
             }
             
-            // Determine horizontal movement
-            if (IsCloserToLeft())
+            // Randomly choose between horizontal and vertical movement (70% horizontal, 30% vertical)
+            bool useHorizontalMovement = _random.NextDouble() < 0.7;
+            
+            if (useHorizontalMovement)
             {
-                // Move from left to right
-                var activities = new[] { "walk", "crawl" };
-                var selectedActivity = activities[_random.Next(activities.Length)];
-                return $"autoTriggered/move/horizontal/leftToRight/{selectedActivity}";
+                // Determine horizontal movement
+                if (IsCloserToLeft())
+                {
+                    // Move from left to right
+                    var activities = new[] { "walk", "crawl" };
+                    var selectedActivity = activities[_random.Next(activities.Length)];
+                    return $"autoTriggered/move/horizontal/leftToRight/{selectedActivity}";
+                }
+                else
+                {
+                    // Move from right to left
+                    var activities = new[] { "walk", "crawl" };
+                    var selectedActivity = activities[_random.Next(activities.Length)];
+                    return $"autoTriggered/move/horizontal/rightToLeft/{selectedActivity}";
+                }
             }
             else
             {
-                // Move from right to left
-                var activities = new[] { "walk", "crawl" };
-                var selectedActivity = activities[_random.Next(activities.Length)];
-                return $"autoTriggered/move/horizontal/rightToLeft/{selectedActivity}";
+                // Determine vertical movement
+                if (IsCloserToTop())
+                {
+                    // Move from top to bottom
+                    var activities = new[] { "fall.left", "fall.right" };
+                    var selectedActivity = activities[_random.Next(activities.Length)];
+                    return $"autoTriggered/move/vertical/topToBottom/{selectedActivity}";
+                }
+                else
+                {
+                    // Move from bottom to top
+                    var activities = new[] { "climb.left", "climb.right" };
+                    var selectedActivity = activities[_random.Next(activities.Length)];
+                    return $"autoTriggered/move/vertical/bottomToTop/{selectedActivity}";
+                }
             }
         }
         
@@ -414,8 +438,11 @@ namespace PetViewerLinux
                 }
             }
             
-            // Apply movement
-            this.Position = new PixelPoint(currentPos.X + deltaX, currentPos.Y + deltaY);
+            // Apply movement with bounds checking
+            var newX = Math.Max(_screenBounds.X, Math.Min(currentPos.X + deltaX, _screenBounds.Right - (int)this.Width));
+            var newY = Math.Max(_screenBounds.Y, Math.Min(currentPos.Y + deltaY, _screenBounds.Bottom - (int)this.Height));
+            
+            this.Position = new PixelPoint(newX, newY);
         }
         
         private void StartMovement(string animationPath)
@@ -784,8 +811,8 @@ namespace PetViewerLinux
                 "autoTriggered/down"
             });
             
-            // Add movement animations based on position (30% chance to move)
-            if (_random.NextDouble() < 0.3)
+            // Add movement animations based on position (30% chance to move, but not during activities)
+            if (_random.NextDouble() < 0.3 && _currentActivity == null)
             {
                 var moveAnimationPath = GetMoveAnimationBasedOnPosition();
                 if (moveAnimationPath != null)
@@ -863,15 +890,15 @@ namespace PetViewerLinux
         
         private void AutoTriggerTimer_Tick(object? sender, EventArgs e)
         {
-            // Only trigger if currently in idle state and no activity is active
-            if (_currentState == AnimationState.Idle && _currentActivity == null)
+            // Only trigger if currently in idle state, no activity is active, and not currently moving
+            if (_currentState == AnimationState.Idle && _currentActivity == null && !_isMoving)
             {
                 _autoTriggerTimer.Stop();
                 StartAnimation(AnimationState.AutoTriggered);
             }
             else
             {
-                // Restart timer with new random interval if not in idle
+                // Restart timer with new random interval if not in idle or if currently moving
                 _autoTriggerTimer.Interval = TimeSpan.FromSeconds(GetRandomIdleTime());
             }
         }
@@ -991,6 +1018,13 @@ namespace PetViewerLinux
         private void HandleDragStart()
         {
             _isDragging = true;
+            
+            // Stop any ongoing movement
+            if (_isMoving)
+            {
+                StopMovement();
+            }
+            
             if (_currentActivity == null)
             {
                 _autoTriggerTimer.Stop();
@@ -1015,6 +1049,13 @@ namespace PetViewerLinux
         private void HandleRightDragStart()
         {
             _isRightDragging = true;
+            
+            // Stop any ongoing movement
+            if (_isMoving)
+            {
+                StopMovement();
+            }
+            
             if (_currentActivity == null)
             {
                 _autoTriggerTimer.Stop();
