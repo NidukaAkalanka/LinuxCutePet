@@ -28,6 +28,9 @@ namespace PetViewerLinux
         ActivityStart,
         ActivityLoop,
         ActivityEnd,
+        MusicTriggeredStart,
+        MusicTriggeredLoop,
+        MusicTriggeredEnd,
         Shutdown
     }
 
@@ -64,6 +67,12 @@ namespace PetViewerLinux
         private bool _isWaitingForRightDragOrClick = false;
         private bool _isRightDragging = false;
         private DispatcherTimer _rightClickDragTimer = null!;
+        
+        // Music trigger system
+        private IAudioMonitor? _audioMonitor;
+        private DateTime _lastMusicTriggerStart = DateTime.MinValue;
+        private bool _isMusicTriggered = false;
+        private DispatcherTimer _musicTriggerDelayTimer = null!;
 
         public MainWindow()
         {
@@ -77,6 +86,9 @@ namespace PetViewerLinux
             
             // Initialize pet activities
             InitializePetActivities();
+            
+            // Initialize music trigger system
+            InitializeMusicTriggerSystem();
 
             // Get a reference to UI elements
             var mainGrid = this.FindControl<Grid>("MainGrid");
@@ -247,6 +259,21 @@ namespace PetViewerLinux
             };
         }
         
+        private void InitializeMusicTriggerSystem()
+        {
+            // Initialize the delay timer for 3-second minimum trigger duration
+            _musicTriggerDelayTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(3) // 3 second minimum duration
+            };
+            _musicTriggerDelayTimer.Tick += MusicTriggerDelayTimer_Tick;
+            
+            // Initialize audio monitor
+            _audioMonitor = new AudioMonitor();
+            _audioMonitor.VolumeChanged += OnVolumeChanged;
+            _audioMonitor.StartMonitoring();
+        }
+        
         private double GetRandomIdleTime()
         {
             // Random idle time between 5-15 seconds
@@ -371,6 +398,21 @@ namespace PetViewerLinux
                         _nextState = AnimationState.Idle;
                         _currentActivity = null;
                     }
+                    break;
+                    
+                case AnimationState.MusicTriggeredStart:
+                    animationPath = "musicTriggered";
+                    _nextState = AnimationState.MusicTriggeredLoop;
+                    break;
+                    
+                case AnimationState.MusicTriggeredLoop:
+                    animationPath = "musicTriggered/loop";
+                    _isLooping = true;
+                    break;
+                    
+                case AnimationState.MusicTriggeredEnd:
+                    animationPath = "musicTriggered/loopOut";
+                    _nextState = AnimationState.Idle;
                     break;
                     
                 case AnimationState.Shutdown:
@@ -503,6 +545,10 @@ namespace PetViewerLinux
 
         private void HandleClick(Point clickPosition)
         {
+            // Stop any ongoing music trigger
+            _isMusicTriggered = false;
+            _musicTriggerDelayTimer.Stop();
+            
             // Determine if click was on head or body
             // Assuming top 1/3 of window is head, rest is body
             double headThreshold = this.Height / 3.0;
@@ -541,6 +587,50 @@ namespace PetViewerLinux
             
             // If we reach here, it's a right click (not a drag) - show context menu
             ShowContextMenu();
+        }
+
+        private void MusicTriggerDelayTimer_Tick(object? sender, EventArgs e)
+        {
+            _musicTriggerDelayTimer.Stop();
+            
+            // After 3 seconds of continuous audio, start music animation if not already active
+            if (_isMusicTriggered && _currentState == AnimationState.Idle && _currentActivity == null)
+            {
+                StartAnimation(AnimationState.MusicTriggeredStart);
+            }
+        }
+
+        private void OnVolumeChanged(float volume)
+        {
+            float threshold = SettingsManager.TriggerVolumeThreshold;
+            
+            if (volume >= threshold)
+            {
+                // Audio activity detected
+                if (!_isMusicTriggered)
+                {
+                    _isMusicTriggered = true;
+                    _lastMusicTriggerStart = DateTime.Now;
+                    
+                    // Start the 3-second delay timer
+                    _musicTriggerDelayTimer.Start();
+                }
+            }
+            else
+            {
+                // No significant audio activity
+                if (_isMusicTriggered)
+                {
+                    _isMusicTriggered = false;
+                    _musicTriggerDelayTimer.Stop();
+                    
+                    // If we're currently in music-triggered animation, end it
+                    if (_currentState == AnimationState.MusicTriggeredLoop)
+                    {
+                        StartAnimation(AnimationState.MusicTriggeredEnd);
+                    }
+                }
+            }
         }
 
         private void MainGrid_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -615,6 +705,10 @@ namespace PetViewerLinux
         
         private void HandleDragStart()
         {
+            // Stop any ongoing music trigger
+            _isMusicTriggered = false;
+            _musicTriggerDelayTimer.Stop();
+            
             _isDragging = true;
             if (_currentActivity == null)
             {
@@ -639,6 +733,10 @@ namespace PetViewerLinux
         
         private void HandleRightDragStart()
         {
+            // Stop any ongoing music trigger
+            _isMusicTriggered = false;
+            _musicTriggerDelayTimer.Stop();
+            
             _isRightDragging = true;
             if (_currentActivity == null)
             {
@@ -668,6 +766,11 @@ namespace PetViewerLinux
                 _currentActivity = activity;
                 _animationTimer.Stop();
                 _autoTriggerTimer.Stop();
+                
+                // Stop music trigger when starting manual activity
+                _isMusicTriggered = false;
+                _musicTriggerDelayTimer.Stop();
+                
                 StartAnimation(AnimationState.ActivityStart);
             }
         }
@@ -698,12 +801,35 @@ namespace PetViewerLinux
                 }
                 contextMenu.Items.Add(activitiesItem);
                 
-                // Create Settings submenu (dummy for now)
+                // Create Settings submenu
                 var settingsItem = new MenuItem { Header = "Settings" };
-                var setting1Item = new MenuItem { Header = "Option 1" };
-                var setting2Item = new MenuItem { Header = "Option 2" };
-                settingsItem.Items.Add(setting1Item);
-                settingsItem.Items.Add(setting2Item);
+                
+                // Trigger Volume submenu
+                var triggerVolumeItem = new MenuItem { Header = "Trigger Volume" };
+                var currentThreshold = SettingsManager.TriggerVolumeThreshold;
+                
+                // Add volume level options
+                var volumeLevels = new[] { 
+                    (0.1f, "10%"), 
+                    (0.2f, "20%"), 
+                    (0.3f, "30%"), 
+                    (0.4f, "40%"), 
+                    (0.5f, "50%") 
+                };
+                
+                foreach (var (threshold, label) in volumeLevels)
+                {
+                    var volumeItem = new MenuItem { 
+                        Header = label + (Math.Abs(currentThreshold - threshold) < 0.01f ? " ✓" : "")
+                    };
+                    var capturedThreshold = threshold; // Capture for closure
+                    volumeItem.Click += (s, e) => {
+                        SettingsManager.TriggerVolumeThreshold = capturedThreshold;
+                    };
+                    triggerVolumeItem.Items.Add(volumeItem);
+                }
+                
+                settingsItem.Items.Add(triggerVolumeItem);
                 contextMenu.Items.Add(settingsItem);
             }
             else
@@ -839,6 +965,20 @@ namespace PetViewerLinux
                 this.Width = newWidth;
                 this.Height = newHeight;
             }
+        }
+        
+        protected override void OnClosed(EventArgs e)
+        {
+            // Cleanup resources
+            _animationTimer?.Stop();
+            _autoTriggerTimer?.Stop();
+            _clickDragTimer?.Stop();
+            _rightClickDragTimer?.Stop();
+            _musicTriggerDelayTimer?.Stop();
+            
+            _audioMonitor?.Dispose();
+            
+            base.OnClosed(e);
         }
     }
 }

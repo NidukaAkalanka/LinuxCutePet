@@ -148,3 +148,17 @@
 /home/niduka/LinuxCutePet/obj/Debug/net8.0/PetViewerLinux.pdb
 /home/niduka/LinuxCutePet/obj/Debug/net8.0/PetViewerLinux.genruntimeconfig.cache
 /home/niduka/LinuxCutePet/obj/Debug/net8.0/ref/PetViewerLinux.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/NAudio.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/NAudio.Asio.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/NAudio.Core.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/NAudio.Midi.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/NAudio.Wasapi.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/NAudio.WinMM.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/OpenTK.Audio.OpenAL.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/OpenTK.Core.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/OpenTK.Mathematics.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/System.Configuration.ConfigurationManager.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/System.Diagnostics.EventLog.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/System.Security.Cryptography.ProtectedData.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/runtimes/win/lib/net8.0/System.Diagnostics.EventLog.Messages.dll
+/home/runner/work/LinuxCutePet/LinuxCutePet/bin/Debug/net8.0/runtimes/win/lib/net8.0/System.Diagnostics.EventLog.dll
