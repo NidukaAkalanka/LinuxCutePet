@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PetViewerLinux.DanceSettingsWindow"
+        Title="Dance Settings"
+        Width="300"
+        Height="150"
+        CanResize="false"
+        WindowStartupLocation="CenterOwner">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="20"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="20"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <TextBlock Grid.Row="0" 
+                   Text="Music Dancing Settings" 
+                   FontSize="14" 
+                   FontWeight="Bold"/>
+        
+        <CheckBox Grid.Row="2" 
+                  Name="DanceCheckBox"
+                  Content="Pet Dances to Music"
+                  IsChecked="True"
+                  FontSize="12"/>
+        
+        <StackPanel Grid.Row="4" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right">
+            <Button Name="CancelButton" 
+                    Content="Cancel" 
+                    Width="80" 
+                    Margin="0,0,10,0"/>
+            <Button Name="OkButton" 
+                    Content="OK" 
+                    Width="80"/>
+        </StackPanel>
+    </Grid>
+</Window>

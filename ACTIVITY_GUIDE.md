@@ -65,7 +65,7 @@ In `MainWindow.axaml.cs`, modify the `InitializePetActivities()` method to add y
 3. **End**: Plays exit animation, then returns to idle state
 
 ### Context Menu Behavior
-- When no activity is active: Shows all available activities
+- When no activity is active: Shows Activities submenu and Settings submenu
 - When an activity is active: Shows only the stop option for that activity
 - Always shows "Exit" option
 
@@ -74,6 +74,11 @@ In `MainWindow.axaml.cs`, modify the `InitializePetActivities()` method to add y
 - **Left-click during activity**: Ignored (prevents accidental interruption)
 - **Drag during activity**: Enabled (allows moving the pet without interrupting activity)
 - **Right-click drag**: Triggers special right-drag animation (when not in activity)
+- **Music Detection**: Automatically dances when audio output is detected above threshold for 3+ seconds
+
+### Settings
+- **Trigger Volume**: Adjustable slider (0-100%) to set music detection threshold
+- **Option 2**: Future setting option
 
 ## Technical Details
 
@@ -95,5 +100,42 @@ public class PetActivity
 - `ActivityStart`: Initial animation phase
 - `ActivityLoop`: Continuous looping phase  
 - `ActivityEnd`: Exit animation phase
+- `MusicTriggered`: Initial music dancing animation
+- `MusicLoop`: Continuous dancing while music plays
+- `MusicEnd`: Exit dancing animation when music stops
+
+## Music Dancing Feature
+
+### How Music Detection Works
+1. **Audio Monitoring**: Continuously monitors system audio output (Linux: PulseAudio, Windows: planned)
+2. **Threshold Check**: Only triggers when audio level exceeds user-set threshold (default 30%)
+3. **Duration Requirement**: Audio must be above threshold for 3+ seconds before dancing starts
+4. **Automatic Response**: Pet automatically starts dancing when conditions are met
+5. **Smart Ending**: Dancing stops when audio level drops below threshold
+
+### Directory Structure for Music Dancing
+```
+Assets/musicTriggered/
+├── 000.png           # Initial dancing animation frames
+├── 001.png           # Continue numbering as needed
+├── 002.png
+├── ...
+├── loop/             # Continuous dancing animation
+│   ├── 000.png
+│   ├── 001.png
+│   └── ...
+└── loopOut/          # Exit dancing animation
+    ├── 000.png
+    ├── 001.png
+    └── ...
+```
+
+### Volume Threshold Settings
+- Access via: Right-click → Settings → Trigger Volume
+- Adjustable slider from 0% to 100%
+- Default: 30%
+- Changes take effect immediately
+- Higher values = less sensitive (requires louder audio)
+- Lower values = more sensitive (triggers with quieter audio)
 
 The system automatically handles state transitions and animation loading based on the directory structure and naming conventions.

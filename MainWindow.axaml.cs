@@ -28,6 +28,9 @@ namespace PetViewerLinux
         ActivityStart,
         ActivityLoop,
         ActivityEnd,
+        MusicTriggered,
+        MusicLoop,
+        MusicEnd,
         Shutdown
     }
 
@@ -64,6 +67,15 @@ namespace PetViewerLinux
         private bool _isWaitingForRightDragOrClick = false;
         private bool _isRightDragging = false;
         private DispatcherTimer _rightClickDragTimer = null!;
+        
+        // Audio monitoring for music dancing
+        private IAudioMonitorService _audioMonitorService = null!;
+        private DateTime _musicStartTime;
+        private bool _isMusicPlaying = false;
+        private bool _isDanceEnabled = true; // Default: dancing enabled
+        private DispatcherTimer _musicDurationTimer = null!; // Timer to check if music has played long enough
+        private const int MUSIC_DETECTION_DELAY_MS = 3000; // 3 seconds
+        private const int MUSIC_STOP_DELAY_MS = 1000; // 1 second delay before stopping dance;
 
         public MainWindow()
         {
@@ -77,6 +89,9 @@ namespace PetViewerLinux
             
             // Initialize pet activities
             InitializePetActivities();
+            
+            // Initialize audio monitoring
+            InitializeAudioMonitoring();
 
             // Get a reference to UI elements
             var mainGrid = this.FindControl<Grid>("MainGrid");
@@ -106,6 +121,13 @@ namespace PetViewerLinux
 
             // Start with startup animation
             StartAnimation(AnimationState.Startup);
+        }
+
+        protected override void OnClosing(WindowClosingEventArgs e)
+        {
+            // Clean up audio monitoring
+            _audioMonitorService?.StopMonitoring();
+            base.OnClosing(e);
         }
 
         private void InitializeComponent()
@@ -142,6 +164,89 @@ namespace PetViewerLinux
                 Interval = TimeSpan.FromMilliseconds(500) // 500ms delay to detect drag vs click
             };
             _rightClickDragTimer.Tick += RightClickDragTimer_Tick;
+            
+            // Initialize music duration timer
+            _musicDurationTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(100) // Check every 100ms
+            };
+            _musicDurationTimer.Tick += MusicDurationTimer_Tick;
+        }
+        
+        private void InitializeAudioMonitoring()
+        {
+            // Initialize audio monitoring service (Linux-specific for now)
+            if (OperatingSystem.IsLinux())
+            {
+                _audioMonitorService = new LinuxAudioMonitorService();
+            }
+            else
+            {
+                // For Windows, we'd add a WindowsAudioMonitorService later
+                // For now, create a dummy service that doesn't monitor
+                _audioMonitorService = new DummyAudioMonitorService();
+            }
+            
+            _audioMonitorService.AudioActivityChanged += OnAudioActivityChanged;
+            _audioMonitorService.StartMonitoring();
+        }
+        
+        private void OnAudioActivityChanged(object? sender, AudioActivityChangedEventArgs e)
+        {
+            // Only proceed if dance is enabled
+            if (!_isDanceEnabled)
+                return;
+                
+            if (e.IsActive)
+            {
+                if (!_isMusicPlaying)
+                {
+                    // Audio activity detected - start tracking
+                    _musicStartTime = e.Timestamp;
+                    _isMusicPlaying = true;
+                    _musicDurationTimer.Start(); // Start checking duration
+                }
+            }
+            else if (!e.IsActive && _isMusicPlaying)
+            {
+                // Audio activity stopped - stop music immediately with 1 second delay
+                _isMusicPlaying = false;
+                _musicDurationTimer.Stop(); // Stop duration checking
+                if (_currentState == AnimationState.MusicLoop)
+                {
+                    // Wait 1 second before stopping to avoid rapid changes
+                    DispatcherTimer.Run(() =>
+                    {
+                        if (!_isMusicPlaying && _currentState == AnimationState.MusicLoop)
+                        {
+                            StartAnimation(AnimationState.MusicEnd);
+                        }
+                        return false;
+                    }, TimeSpan.FromMilliseconds(MUSIC_STOP_DELAY_MS));
+                }
+            }
+        }
+        
+        private void MusicDurationTimer_Tick(object? sender, EventArgs e)
+        {
+            // Only proceed if music is playing and dance is enabled
+            if (!_isMusicPlaying || !_isDanceEnabled)
+            {
+                _musicDurationTimer.Stop();
+                return;
+            }
+            
+            // Check if we've had audio activity long enough to start dancing
+            var duration = DateTime.Now - _musicStartTime;
+            if (duration.TotalMilliseconds >= MUSIC_DETECTION_DELAY_MS && 
+                _currentState == AnimationState.Idle && 
+                _currentActivity == null)
+            {
+                // Start dancing animation
+                _autoTriggerTimer.Stop();
+                _musicDurationTimer.Stop(); // Stop checking once we start dancing
+                StartAnimation(AnimationState.MusicTriggered);
+            }
         }
         
         private void InitializePetActivities()
@@ -371,6 +476,21 @@ namespace PetViewerLinux
                         _nextState = AnimationState.Idle;
                         _currentActivity = null;
                     }
+                    break;
+                    
+                case AnimationState.MusicTriggered:
+                    animationPath = "musicTriggered";
+                    _nextState = AnimationState.MusicLoop;
+                    break;
+                    
+                case AnimationState.MusicLoop:
+                    animationPath = "musicTriggered/loop";
+                    _isLooping = true;
+                    break;
+                    
+                case AnimationState.MusicEnd:
+                    animationPath = "musicTriggered/loopOut";
+                    _nextState = AnimationState.Idle;
                     break;
                     
                 case AnimationState.Shutdown:
@@ -698,12 +818,22 @@ namespace PetViewerLinux
                 }
                 contextMenu.Items.Add(activitiesItem);
                 
-                // Create Settings submenu (dummy for now)
+                // Create Settings submenu
                 var settingsItem = new MenuItem { Header = "Settings" };
-                var setting1Item = new MenuItem { Header = "Option 1" };
-                var setting2Item = new MenuItem { Header = "Option 2" };
-                settingsItem.Items.Add(setting1Item);
-                settingsItem.Items.Add(setting2Item);
+                
+                // Add toggle for dance enable/disable
+                var danceToggleItem = new MenuItem 
+                { 
+                    Header = _isDanceEnabled ? "✓ Dancing Enabled" : "Dancing Disabled"
+                };
+                danceToggleItem.Click += (s, e) => 
+                {
+                    _isDanceEnabled = !_isDanceEnabled;
+                    // TODO: Save settings to file for persistence
+                    // SaveSettings();
+                };
+                settingsItem.Items.Add(danceToggleItem);
+                
                 contextMenu.Items.Add(settingsItem);
             }
             else
@@ -726,7 +856,7 @@ namespace PetViewerLinux
             contextMenu.Items.Add(exitItem);
             contextMenu.Open(this);
         }
-
+        
         private void ResizeGrip_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
