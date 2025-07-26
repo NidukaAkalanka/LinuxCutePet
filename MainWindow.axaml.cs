@@ -545,6 +545,10 @@ namespace PetViewerLinux
 
         private void HandleClick(Point clickPosition)
         {
+            // Stop any ongoing music trigger
+            _isMusicTriggered = false;
+            _musicTriggerDelayTimer.Stop();
+            
             // Determine if click was on head or body
             // Assuming top 1/3 of window is head, rest is body
             double headThreshold = this.Height / 3.0;
@@ -701,6 +705,10 @@ namespace PetViewerLinux
         
         private void HandleDragStart()
         {
+            // Stop any ongoing music trigger
+            _isMusicTriggered = false;
+            _musicTriggerDelayTimer.Stop();
+            
             _isDragging = true;
             if (_currentActivity == null)
             {
@@ -725,6 +733,10 @@ namespace PetViewerLinux
         
         private void HandleRightDragStart()
         {
+            // Stop any ongoing music trigger
+            _isMusicTriggered = false;
+            _musicTriggerDelayTimer.Stop();
+            
             _isRightDragging = true;
             if (_currentActivity == null)
             {
@@ -754,6 +766,11 @@ namespace PetViewerLinux
                 _currentActivity = activity;
                 _animationTimer.Stop();
                 _autoTriggerTimer.Stop();
+                
+                // Stop music trigger when starting manual activity
+                _isMusicTriggered = false;
+                _musicTriggerDelayTimer.Stop();
+                
                 StartAnimation(AnimationState.ActivityStart);
             }
         }
