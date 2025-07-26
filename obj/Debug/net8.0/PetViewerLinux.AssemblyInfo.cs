@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PetViewerLinux")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dcb1ca84853ffcb27256544fb1a767d4851dd034")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+925e2817ca89d1963ae18500b34aef798844bffd")]
 [assembly: System.Reflection.AssemblyProductAttribute("PetViewerLinux")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PetViewerLinux")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
