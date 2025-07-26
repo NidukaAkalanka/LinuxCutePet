@@ -57,6 +57,18 @@
             "Avalonia.Themes.Fluent": {
               "target": "Package",
               "version": "[11.3.2, )"
+            },
+            "NAudio": {
+              "target": "Package",
+              "version": "[2.2.1, )"
+            },
+            "OpenTK.Audio.OpenAL": {
+              "target": "Package",
+              "version": "[4.9.4, )"
+            },
+            "System.Configuration.ConfigurationManager": {
+              "target": "Package",
+              "version": "[9.0.7, )"
             }
           },
           "imports": [

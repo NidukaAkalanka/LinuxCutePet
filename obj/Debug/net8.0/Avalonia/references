@@ -30,7 +30,16 @@
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/Microsoft.Win32.Primitives.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/Microsoft.Win32.Registry.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/mscorlib.dll
+/home/runner/.nuget/packages/naudio.asio/2.2.1/lib/netstandard2.0/NAudio.Asio.dll
+/home/runner/.nuget/packages/naudio.core/2.2.1/lib/netstandard2.0/NAudio.Core.dll
+/home/runner/.nuget/packages/naudio/2.2.1/lib/net6.0/NAudio.dll
+/home/runner/.nuget/packages/naudio.midi/2.2.1/lib/netstandard2.0/NAudio.Midi.dll
+/home/runner/.nuget/packages/naudio.wasapi/2.2.1/lib/netstandard2.0/NAudio.Wasapi.dll
+/home/runner/.nuget/packages/naudio.winmm/2.2.1/lib/netstandard2.0/NAudio.WinMM.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/netstandard.dll
+/home/runner/.nuget/packages/opentk.audio.openal/4.9.4/lib/netcoreapp3.1/OpenTK.Audio.OpenAL.dll
+/home/runner/.nuget/packages/opentk.core/4.9.4/lib/netstandard2.1/OpenTK.Core.dll
+/home/runner/.nuget/packages/opentk.mathematics/4.9.4/lib/netcoreapp3.1/OpenTK.Mathematics.dll
 /home/runner/.nuget/packages/skiasharp/2.88.9/lib/net6.0/SkiaSharp.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.AppContext.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Buffers.dll
@@ -45,6 +54,7 @@
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.ComponentModel.EventBasedAsync.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.ComponentModel.Primitives.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.ComponentModel.TypeConverter.dll
+/home/runner/.nuget/packages/system.configuration.configurationmanager/9.0.7/lib/net8.0/System.Configuration.ConfigurationManager.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Configuration.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Console.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Core.dll
@@ -54,6 +64,7 @@
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Diagnostics.Contracts.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Diagnostics.Debug.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Diagnostics.DiagnosticSource.dll
+/home/runner/.nuget/packages/system.diagnostics.eventlog/9.0.7/lib/net8.0/System.Diagnostics.EventLog.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Diagnostics.FileVersionInfo.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Diagnostics.Process.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Diagnostics.StackTrace.dll
@@ -150,6 +161,7 @@
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Security.Cryptography.Encoding.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Security.Cryptography.OpenSsl.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Security.Cryptography.Primitives.dll
+/home/runner/.nuget/packages/system.security.cryptography.protecteddata/9.0.7/lib/net8.0/System.Security.Cryptography.ProtectedData.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Security.Cryptography.X509Certificates.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Security.dll
 /usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.18/ref/net8.0/System.Security.Principal.dll
