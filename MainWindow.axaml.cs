@@ -90,10 +90,19 @@ namespace PetViewerLinux
         private string? _currentMoveAnimationPath = null;
         private int _moveSpeed = 3; // pixels per frame during movement
         private bool _isMoving = false;
+        
+        // Configuration and calibration
+        private Config _config = null!;
+        private EdgeCalibration _edgeCalibration = null!;
 
         public MainWindow()
         {
             InitializeComponent();
+            
+            // Load configuration
+            _config = ConfigManager.LoadConfig();
+            _edgeCalibration = _config.EdgeCalibration;
+            _isDanceEnabled = _config.IsDanceEnabled;
 
             // Set window to stay on top
             this.Topmost = true;
@@ -299,22 +308,38 @@ namespace PetViewerLinux
         
         private bool IsAtTopEdge()
         {
-            return this.Position.Y <= _screenBounds.Y + 100; // Within 100 pixels of top edge
+            if (_edgeCalibration.IsCalibrated)
+            {
+                return this.Position.Y <= _edgeCalibration.TopEdgeY + 50; // 50 pixel tolerance
+            }
+            return this.Position.Y <= _screenBounds.Y + 100; // Fallback to original logic
         }
         
         private bool IsAtLeftEdge()
         {
-            return this.Position.X <= _screenBounds.X + 100; // Within 100 pixels of left edge
+            if (_edgeCalibration.IsCalibrated)
+            {
+                return this.Position.X <= _edgeCalibration.LeftEdgeX + 50; // 50 pixel tolerance
+            }
+            return this.Position.X <= _screenBounds.X + 100; // Fallback to original logic
         }
         
         private bool IsAtRightEdge()
         {
-            return this.Position.X >= _screenBounds.Right - this.Width - 100; // Within 100 pixels of right edge
+            if (_edgeCalibration.IsCalibrated)
+            {
+                return this.Position.X >= _edgeCalibration.RightEdgeX - this.Width - 50; // 50 pixel tolerance
+            }
+            return this.Position.X >= _screenBounds.Right - this.Width - 100; // Fallback to original logic
         }
         
         private bool IsAtBottomEdge()
         {
-            return this.Position.Y >= _screenBounds.Bottom - this.Height - 100; // Within 100 pixels of bottom edge
+            if (_edgeCalibration.IsCalibrated)
+            {
+                return this.Position.Y >= _edgeCalibration.BottomEdgeY - this.Height - 50; // 50 pixel tolerance
+            }
+            return this.Position.Y >= _screenBounds.Bottom - this.Height - 100; // Fallback to original logic
         }
         
         private bool IsCloserToLeft()
@@ -439,8 +464,20 @@ namespace PetViewerLinux
             }
             
             // Apply movement with bounds checking
-            var newX = Math.Max(_screenBounds.X, Math.Min(currentPos.X + deltaX, _screenBounds.Right - (int)this.Width));
-            var newY = Math.Max(_screenBounds.Y, Math.Min(currentPos.Y + deltaY, _screenBounds.Bottom - (int)this.Height));
+            int newX, newY;
+            
+            if (_edgeCalibration.IsCalibrated)
+            {
+                // Use calibrated bounds for movement
+                newX = Math.Max(_edgeCalibration.LeftEdgeX, Math.Min(currentPos.X + deltaX, _edgeCalibration.RightEdgeX - (int)this.Width));
+                newY = Math.Max(_edgeCalibration.TopEdgeY, Math.Min(currentPos.Y + deltaY, _edgeCalibration.BottomEdgeY - (int)this.Height));
+            }
+            else
+            {
+                // Fallback to screen bounds
+                newX = Math.Max(_screenBounds.X, Math.Min(currentPos.X + deltaX, _screenBounds.Right - (int)this.Width));
+                newY = Math.Max(_screenBounds.Y, Math.Min(currentPos.Y + deltaY, _screenBounds.Bottom - (int)this.Height));
+            }
             
             this.Position = new PixelPoint(newX, newY);
         }
@@ -1125,10 +1162,15 @@ namespace PetViewerLinux
                 danceToggleItem.Click += (s, e) => 
                 {
                     _isDanceEnabled = !_isDanceEnabled;
-                    // TODO: Save settings to file for persistence
-                    // SaveSettings();
+                    _config.IsDanceEnabled = _isDanceEnabled;
+                    ConfigManager.SaveConfig(_config);
                 };
                 settingsItem.Items.Add(danceToggleItem);
+                
+                // Add calibration option
+                var calibrateItem = new MenuItem { Header = "Calibrate Edges" };
+                calibrateItem.Click += (s, e) => StartCalibration();
+                settingsItem.Items.Add(calibrateItem);
                 
                 contextMenu.Items.Add(settingsItem);
             }
@@ -1151,6 +1193,26 @@ namespace PetViewerLinux
             
             contextMenu.Items.Add(exitItem);
             contextMenu.Open(this);
+        }
+        
+        private void StartCalibration()
+        {
+            // Hide current window temporarily
+            this.Hide();
+            
+            // Show calibration window
+            var calibrationWindow = new CalibrationWindow();
+            calibrationWindow.Closed += (s, e) =>
+            {
+                // Reload configuration after calibration
+                _config = ConfigManager.LoadConfig();
+                _edgeCalibration = _config.EdgeCalibration;
+                _isDanceEnabled = _config.IsDanceEnabled;
+                
+                // Show main window again
+                this.Show();
+            };
+            calibrationWindow.Show();
         }
         
         private void ResizeGrip_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -1248,10 +1310,22 @@ namespace PetViewerLinux
                     currentPosition - _startPosition : 
                     currentPosition - _rightClickPosition;
                 
-                this.Position = new PixelPoint(
-                    this.Position.X + (int)delta.X,
-                    this.Position.Y + (int)delta.Y
-                );
+                var newX = this.Position.X + (int)delta.X;
+                var newY = this.Position.Y + (int)delta.Y;
+                
+                // Allow movement to calibrated edges or beyond if calibrated
+                if (_edgeCalibration.IsCalibrated)
+                {
+                    // Allow movement to calibrated edge positions (no artificial constraints)
+                    this.Position = new PixelPoint(newX, newY);
+                }
+                else
+                {
+                    // Use original screen bounds as fallback
+                    var boundedX = Math.Max(_screenBounds.X, Math.Min(newX, _screenBounds.Right - (int)this.Width));
+                    var boundedY = Math.Max(_screenBounds.Y, Math.Min(newY, _screenBounds.Bottom - (int)this.Height));
+                    this.Position = new PixelPoint(boundedX, boundedY);
+                }
             }
             else if (_isResizing)
             {

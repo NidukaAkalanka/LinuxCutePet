@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PetViewerLinux.CalibrationWindow"
+        Title="Pet Edge Calibration"
+        WindowState="Maximized"
+        Background="Black"
+        SystemDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        Topmost="True">
+
+    <Grid Name="MainGrid">
+        <!-- Pet image for dragging -->
+        <Image Name="PetImage" 
+               Width="300" 
+               Height="300"
+               Stretch="Uniform"
+               HorizontalAlignment="Center" 
+               VerticalAlignment="Center"/>
+        
+        <!-- Instruction text -->
+        <TextBlock Name="InstructionText"
+                   Text="Click and drag the pet to the top edge of your screen, and press Enter when done."
+                   FontSize="24"
+                   Foreground="White"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Top"
+                   Margin="0,50,0,0"
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"/>
+        
+        <!-- Skip calibration button -->
+        <Button Name="SkipButton"
+                Content="Skip Calibration (ESC)"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Margin="0,0,20,20"
+                Padding="10,5"/>
+    </Grid>
+</Window>
