@@ -37,17 +37,23 @@ namespace PetViewerLinux
             var skipButton = this.FindControl<Button>("SkipButton");
             
             // Setup event handlers
-            var mainGrid = this.FindControl<Grid>("MainGrid");
-            if (mainGrid != null)
+            var mainCanvas = this.FindControl<Canvas>("MainCanvas");
+            if (mainCanvas != null)
             {
-                mainGrid.PointerPressed += MainGrid_PointerPressed;
-                mainGrid.PointerMoved += MainGrid_PointerMoved;
-                mainGrid.PointerReleased += MainGrid_PointerReleased;
+                mainCanvas.PointerPressed += MainCanvas_PointerPressed;
+                mainCanvas.PointerMoved += MainCanvas_PointerMoved;
+                mainCanvas.PointerReleased += MainCanvas_PointerReleased;
             }
             
             if (skipButton != null)
             {
                 skipButton.Click += SkipButton_Click;
+                // Position button at bottom-right when window loads
+                this.Loaded += (s, e) =>
+                {
+                    Canvas.SetRight(skipButton, 20);
+                    Canvas.SetBottom(skipButton, 20);
+                };
             }
             
             // Handle keyboard input
@@ -77,13 +83,11 @@ namespace PetViewerLinux
                 _instructionText.Text = instruction;
             }
             
-            // Position pet in center of screen
-            if (_petImage != null)
+            // Position pet in center of screen  
+            if (_petImage != null && this.Bounds.Width > 0 && this.Bounds.Height > 0)
             {
-                _petImage.Margin = new Avalonia.Thickness(
-                    (this.Bounds.Width - 300) / 2, 
-                    (this.Bounds.Height - 300) / 2, 
-                    0, 0);
+                Canvas.SetLeft(_petImage, (this.Bounds.Width - 300) / 2);
+                Canvas.SetTop(_petImage, (this.Bounds.Height - 300) / 2);
             }
         }
 
@@ -140,16 +144,17 @@ namespace PetViewerLinux
             }
         }
 
-        private void MainGrid_PointerPressed(object? sender, PointerPressedEventArgs e)
+        private void MainCanvas_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
             if (_petImage != null && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
                 var position = e.GetPosition(this);
-                var margin = _petImage.Margin;
+                var petLeft = Canvas.GetLeft(_petImage);
+                var petTop = Canvas.GetTop(_petImage);
                 
                 // Check if click is within pet image bounds
-                if (position.X >= margin.Left && position.X <= margin.Left + 300 &&
-                    position.Y >= margin.Top && position.Y <= margin.Top + 300)
+                if (position.X >= petLeft && position.X <= petLeft + 300 &&
+                    position.Y >= petTop && position.Y <= petTop + 300)
                 {
                     _isDragging = true;
                     _dragStartPosition = position;
@@ -158,7 +163,7 @@ namespace PetViewerLinux
             }
         }
 
-        private void MainGrid_PointerMoved(object? sender, PointerEventArgs e)
+        private void MainCanvas_PointerMoved(object? sender, PointerEventArgs e)
         {
             if (_isDragging && _petImage != null)
             {
@@ -166,18 +171,20 @@ namespace PetViewerLinux
                 var deltaX = currentPosition.X - _dragStartPosition.X;
                 var deltaY = currentPosition.Y - _dragStartPosition.Y;
                 
-                // Update the pet image position using Margin
-                var currentMargin = _petImage.Margin;
-                var newLeft = Math.Max(0, Math.Min(this.Bounds.Width - 300, currentMargin.Left + deltaX));
-                var newTop = Math.Max(0, Math.Min(this.Bounds.Height - 300, currentMargin.Top + deltaY));
+                // Update the pet image position using Canvas positioning
+                var currentLeft = Canvas.GetLeft(_petImage);
+                var currentTop = Canvas.GetTop(_petImage);
+                var newLeft = Math.Max(0, Math.Min(this.Bounds.Width - 300, currentLeft + deltaX));
+                var newTop = Math.Max(0, Math.Min(this.Bounds.Height - 300, currentTop + deltaY));
                 
-                _petImage.Margin = new Avalonia.Thickness(newLeft, newTop, 0, 0);
+                Canvas.SetLeft(_petImage, newLeft);
+                Canvas.SetTop(_petImage, newTop);
                 
                 _dragStartPosition = currentPosition;
             }
         }
 
-        private void MainGrid_PointerReleased(object? sender, PointerReleasedEventArgs e)
+        private void MainCanvas_PointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             _isDragging = false;
         }
@@ -206,10 +213,11 @@ namespace PetViewerLinux
         {
             if (_petImage == null) return;
             
-            var margin = _petImage.Margin;
+            var petLeft = Canvas.GetLeft(_petImage);
+            var petTop = Canvas.GetTop(_petImage);
             var petCenter = new Point(
-                margin.Left + 150, // Half of 300px width
-                margin.Top + 150   // Half of 300px height
+                petLeft + 150, // Half of 300px width
+                petTop + 150   // Half of 300px height
             );
             
             switch (_currentEdge)
