@@ -91,6 +91,12 @@ namespace PetViewerLinux
         private string? _currentMoveAnimationPath = null;
         private int _moveSpeed = 3; // pixels per frame during movement
         private bool _isMoving = false;
+        
+        // Memory optimization: Bitmap caching system
+        private Dictionary<string, Bitmap> _bitmapCache = new Dictionary<string, Bitmap>();
+        private HashSet<string> _criticalAnimations = new HashSet<string> { "startup", "idle", "shutdown" };
+        private string? _currentAnimationPath = null;
+        private DispatcherTimer _memoryCleanupTimer = null!;
 
         public MainWindow()
         {
@@ -137,12 +143,18 @@ namespace PetViewerLinux
             this.PointerReleased += Window_PointerReleased;
             this.PointerMoved += Window_PointerMoved;
 
+            // Preload critical animations for better performance
+            PreloadCriticalAnimations();
+
             // Start with startup animation
             StartAnimation(AnimationState.Startup);
         }
 
         protected override void OnClosing(WindowClosingEventArgs e)
         {
+            // Clean up bitmap cache
+            ClearBitmapCache();
+            
             // Clean up audio monitoring
             _audioMonitorService?.StopMonitoring();
             
@@ -153,6 +165,7 @@ namespace PetViewerLinux
             _rightClickDragTimer?.Stop();
             _musicDurationTimer?.Stop();
             _positionUpdateTimer?.Stop();
+            _memoryCleanupTimer?.Stop();
             
             base.OnClosing(e);
         }
@@ -205,6 +218,14 @@ namespace PetViewerLinux
                 Interval = TimeSpan.FromMilliseconds(50) // Update position every 50ms for smooth movement
             };
             _positionUpdateTimer.Tick += PositionUpdateTimer_Tick;
+            
+            // Initialize memory cleanup timer - runs every 30 seconds to free unused bitmaps
+            _memoryCleanupTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30)
+            };
+            _memoryCleanupTimer.Tick += MemoryCleanupTimer_Tick;
+            _memoryCleanupTimer.Start();
         }
         
         private void InitializeScreenBounds()
@@ -455,6 +476,22 @@ namespace PetViewerLinux
             }
         }
         
+        private void MemoryCleanupTimer_Tick(object? sender, EventArgs e)
+        {
+            // Periodic cleanup of unused bitmaps (keep current animation and critical ones)
+            if (_currentState == AnimationState.Idle) // Only cleanup during idle to avoid interruption
+            {
+                ClearNonCriticalBitmaps(_currentAnimationPath);
+                
+                // Force garbage collection if cache is getting large
+                if (_bitmapCache.Count > 50)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+            }
+        }
+        
         private void InitializePetActivities()
         {
             _availableActivities = new Dictionary<string, PetActivity>
@@ -592,6 +629,76 @@ namespace PetViewerLinux
             }
             
             return frames;
+        }
+        
+        // Memory optimization methods
+        private void ClearBitmapCache()
+        {
+            foreach (var bitmap in _bitmapCache.Values)
+            {
+                bitmap?.Dispose();
+            }
+            _bitmapCache.Clear();
+        }
+        
+        private void ClearNonCriticalBitmaps(string? keepAnimationPath = null)
+        {
+            var keysToRemove = new List<string>();
+            
+            foreach (var kvp in _bitmapCache)
+            {
+                var framePath = kvp.Key;
+                bool isCritical = _criticalAnimations.Any(critical => framePath.Contains(critical));
+                bool isCurrentAnimation = keepAnimationPath != null && framePath.Contains(keepAnimationPath);
+                
+                if (!isCritical && !isCurrentAnimation)
+                {
+                    kvp.Value?.Dispose();
+                    keysToRemove.Add(kvp.Key);
+                }
+            }
+            
+            foreach (var key in keysToRemove)
+            {
+                _bitmapCache.Remove(key);
+            }
+        }
+        
+        private Bitmap? LoadBitmapFromPath(string resourcePath)
+        {
+            // Check cache first
+            if (_bitmapCache.TryGetValue(resourcePath, out var cachedBitmap))
+            {
+                return cachedBitmap;
+            }
+            
+            // Load from disk
+            try
+            {
+                var uri = new Uri(resourcePath);
+                var bitmap = new Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
+                
+                // Cache the bitmap
+                _bitmapCache[resourcePath] = bitmap;
+                return bitmap;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        
+        private void PreloadCriticalAnimations()
+        {
+            // Preload only the essential animations to minimize startup time
+            foreach (var criticalAnimation in _criticalAnimations)
+            {
+                var frames = LoadAnimationFrames(criticalAnimation);
+                foreach (var frame in frames.Take(3)) // Only load first 3 frames of each critical animation
+                {
+                    LoadBitmapFromPath(frame);
+                }
+            }
         }
         
         private void StartAnimation(AnimationState state, string? specificPath = null)
@@ -761,6 +868,10 @@ namespace PetViewerLinux
                     break;
             }
             
+            // Memory optimization: Clean up previous animation bitmaps (except critical ones)
+            ClearNonCriticalBitmaps(animationPath);
+            _currentAnimationPath = animationPath;
+            
             _currentAnimationFrames = LoadAnimationFrames(animationPath ?? "");
             _currentFrameIndex = 0;
             
@@ -776,14 +887,11 @@ namespace PetViewerLinux
             if (_petImage != null)
             {
                 string resourcePath = $"avares://PetViewerLinux/Assets/{framePath}";
-                try
+                var bitmap = LoadBitmapFromPath(resourcePath);
+                
+                if (bitmap != null)
                 {
-                    var uri = new Uri(resourcePath);
-                    _petImage.Source = new Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
-                }
-                catch
-                {
-                    // Frame not found, ignore
+                    _petImage.Source = bitmap;
                 }
             }
         }
@@ -870,14 +978,12 @@ namespace PetViewerLinux
         {
             if (_petImage != null && _currentFrameIndex < _currentAnimationFrames.Count)
             {
-                try
+                var resourcePath = _currentAnimationFrames[_currentFrameIndex];
+                var bitmap = LoadBitmapFromPath(resourcePath);
+                
+                if (bitmap != null)
                 {
-                    var uri = new Uri(_currentAnimationFrames[_currentFrameIndex]);
-                    _petImage.Source = new Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
-                }
-                catch
-                {
-                    // Frame loading failed, skip
+                    _petImage.Source = bitmap;
                 }
             }
         }
