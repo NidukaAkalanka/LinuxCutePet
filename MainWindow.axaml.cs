@@ -73,6 +73,7 @@ namespace PetViewerLinux
         private Point _rightClickPosition;
         private bool _isWaitingForRightDragOrClick = false;
         private bool _isRightDragging = false;
+        private bool _isShiftPressed = false; // Track if Shift was pressed during right-click
         private DispatcherTimer _rightClickDragTimer = null!;
         
         // Audio monitoring for music dancing
@@ -299,22 +300,22 @@ namespace PetViewerLinux
         
         private bool IsAtTopEdge()
         {
-            return this.Position.Y <= _screenBounds.Y + 100; // Within 100 pixels of top edge
+            return this.Position.Y <= _screenBounds.Y + 10; // Within 10 pixels of top edge
         }
         
         private bool IsAtLeftEdge()
         {
-            return this.Position.X <= _screenBounds.X + 100; // Within 100 pixels of left edge
+            return this.Position.X <= _screenBounds.X + 10; // Within 10 pixels of left edge
         }
         
         private bool IsAtRightEdge()
         {
-            return this.Position.X >= _screenBounds.Right - this.Width - 100; // Within 100 pixels of right edge
+            return this.Position.X >= _screenBounds.Right - this.Width - 10; // Within 10 pixels of right edge
         }
         
         private bool IsAtBottomEdge()
         {
-            return this.Position.Y >= _screenBounds.Bottom - this.Height - 100; // Within 100 pixels of bottom edge
+            return this.Position.Y >= _screenBounds.Bottom - this.Height - 10; // Within 10 pixels of bottom edge
         }
         
         private bool IsCloserToLeft()
@@ -364,19 +365,18 @@ namespace PetViewerLinux
             else
             {
                 // Determine vertical movement
+                // Use .left/.right based on which side of screen the pet is on
+                var sideSuffix = IsCloserToLeft() ? "left" : "right";
+                
                 if (IsCloserToTop())
                 {
                     // Move from top to bottom
-                    var activities = new[] { "fall.left", "fall.right" };
-                    var selectedActivity = activities[_random.Next(activities.Length)];
-                    return $"autoTriggered/move/vertical/topToBottom/{selectedActivity}";
+                    return $"autoTriggered/move/vertical/topToBottom/fall.{sideSuffix}";
                 }
                 else
                 {
                     // Move from bottom to top
-                    var activities = new[] { "climb.left", "climb.right" };
-                    var selectedActivity = activities[_random.Next(activities.Length)];
-                    return $"autoTriggered/move/vertical/bottomToTop/{selectedActivity}";
+                    return $"autoTriggered/move/vertical/bottomToTop/climb.{sideSuffix}";
                 }
             }
         }
@@ -438,9 +438,9 @@ namespace PetViewerLinux
                 }
             }
             
-            // Apply movement with bounds checking
-            var newX = Math.Max(_screenBounds.X, Math.Min(currentPos.X + deltaX, _screenBounds.Right - (int)this.Width));
-            var newY = Math.Max(_screenBounds.Y, Math.Min(currentPos.Y + deltaY, _screenBounds.Bottom - (int)this.Height));
+            // Apply movement without bounds checking for natural movement
+            var newX = currentPos.X + deltaX;
+            var newY = currentPos.Y + deltaY;
             
             this.Position = new PixelPoint(newX, newY);
         }
@@ -905,6 +905,12 @@ namespace PetViewerLinux
 
         private void HandleClick(Point clickPosition)
         {
+            // Stop any ongoing movement when user clicks
+            if (_isMoving)
+            {
+                StopMovement();
+            }
+            
             // Determine if click was on head or body
             // Assuming top 1/3 of window is head, rest is body
             double headThreshold = this.Height / 3.0;
@@ -941,8 +947,17 @@ namespace PetViewerLinux
             _rightClickDragTimer.Stop();
             _isWaitingForRightDragOrClick = false;
             
-            // If we reach here, it's a right click (not a drag) - show context menu
-            ShowContextMenu();
+            // If we reach here, it's a right click (not a drag)
+            if (_isShiftPressed)
+            {
+                // Show developer context menu with autoTriggered actions
+                ShowDeveloperContextMenu();
+            }
+            else
+            {
+                // Show normal context menu
+                ShowContextMenu();
+            }
         }
 
         private void MainGrid_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -951,8 +966,15 @@ namespace PetViewerLinux
             
             if (point.Properties.IsRightButtonPressed)
             {
+                // Stop any ongoing movement when user right-clicks (before we know if it's click or drag)
+                if (_isMoving)
+                {
+                    StopMovement();
+                }
+                
                 _rightClickPosition = e.GetPosition(this);
                 _isWaitingForRightDragOrClick = true;
+                _isShiftPressed = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
                 
                 // Start timer to detect if this becomes a drag or remains a click
                 _rightClickDragTimer.Start();
@@ -962,6 +984,12 @@ namespace PetViewerLinux
             
             if (point.Properties.IsLeftButtonPressed)
             {
+                // Stop any ongoing movement when user left-clicks (before we know if it's click or drag)
+                if (_isMoving)
+                {
+                    StopMovement();
+                }
+                
                 _startPosition = e.GetPosition(this);
                 _clickPosition = _startPosition;
                 _isWaitingForDragOrClick = true;
@@ -1005,8 +1033,15 @@ namespace PetViewerLinux
             }
             else if (_isWaitingForRightDragOrClick)
             {
-                // This is a right click - show context menu
-                ShowContextMenu();
+                // This is a right click - show appropriate context menu based on Shift key
+                if (_isShiftPressed)
+                {
+                    ShowDeveloperContextMenu();
+                }
+                else
+                {
+                    ShowContextMenu();
+                }
             }
 
             _isWaitingForDragOrClick = false;
@@ -1099,6 +1134,12 @@ namespace PetViewerLinux
         
         private void ShowContextMenu()
         {
+            // Stop any ongoing movement when user right-clicks
+            if (_isMoving)
+            {
+                StopMovement();
+            }
+            
             var contextMenu = new ContextMenu();
             
             if (_currentActivity == null)
@@ -1153,6 +1194,172 @@ namespace PetViewerLinux
             contextMenu.Open(this);
         }
         
+        private void ShowDeveloperContextMenu()
+        {
+            // Stop any ongoing movement when user shift+right-clicks
+            if (_isMoving)
+            {
+                StopMovement();
+            }
+            
+            var contextMenu = new ContextMenu();
+            
+            // Add header to indicate this is a developer menu
+            var headerItem = new MenuItem { Header = "🔧 Developer Actions", IsEnabled = false };
+            contextMenu.Items.Add(headerItem);
+            contextMenu.Items.Add(new Separator());
+            
+            // Basic AutoTriggered animations
+            var basicAnimationsItem = new MenuItem { Header = "Basic Animations" };
+            
+            var basicAnimations = new[]
+            {
+                ("Aside", "autoTriggered/aside"),
+                ("Boring", "autoTriggered/boring"),
+                ("Down", "autoTriggered/down"),
+                ("Meow", "autoTriggered/meow"),
+                ("Squat", "autoTriggered/squat"),
+                ("Tennis", "autoTriggered/tennis"),
+                ("Think", "autoTriggered/think"),
+                ("Yawning", "autoTriggered/yawning")
+            };
+            
+            foreach (var (name, path) in basicAnimations)
+            {
+                var item = new MenuItem { Header = name };
+                var animationPath = path; // Capture for closure
+                item.Click += (s, e) => TriggerAutoTriggeredAnimation(animationPath);
+                basicAnimationsItem.Items.Add(item);
+            }
+            
+            contextMenu.Items.Add(basicAnimationsItem);
+            
+            // Movement animations
+            var movementItem = new MenuItem { Header = "Movement Animations" };
+            
+            // Horizontal movements
+            var horizontalItem = new MenuItem { Header = "Horizontal" };
+            
+            var horizontalMovements = new[]
+            {
+                ("Walk Left to Right", "autoTriggered/move/horizontal/leftToRight/walk"),
+                ("Crawl Left to Right", "autoTriggered/move/horizontal/leftToRight/crawl"),
+                ("Walk Right to Left", "autoTriggered/move/horizontal/rightToLeft/walk"),
+                ("Crawl Right to Left", "autoTriggered/move/horizontal/rightToLeft/crawl"),
+                ("Swing Left to Right (Top)", "autoTriggered/move/horizontal/top/leftToRight/swing"),
+                ("Swing Right to Left (Top)", "autoTriggered/move/horizontal/top/rightToLeft/swing")
+            };
+            
+            foreach (var (name, path) in horizontalMovements)
+            {
+                var item = new MenuItem { Header = name };
+                var animationPath = path; // Capture for closure
+                item.Click += (s, e) => TriggerAutoTriggeredAnimation(animationPath);
+                horizontalItem.Items.Add(item);
+            }
+            
+            movementItem.Items.Add(horizontalItem);
+            
+            // Vertical movements
+            var verticalItem = new MenuItem { Header = "Vertical" };
+            
+            var verticalMovements = new[]
+            {
+                ("Climb Left (Bottom to Top)", "autoTriggered/move/vertical/bottomToTop/climb.left"),
+                ("Climb Right (Bottom to Top)", "autoTriggered/move/vertical/bottomToTop/climb.right"),
+                ("Fall Left (Top to Bottom)", "autoTriggered/move/vertical/topToBottom/fall.left"),
+                ("Fall Right (Top to Bottom)", "autoTriggered/move/vertical/topToBottom/fall.right")
+            };
+            
+            foreach (var (name, path) in verticalMovements)
+            {
+                var item = new MenuItem { Header = name };
+                var animationPath = path; // Capture for closure
+                item.Click += (s, e) => TriggerAutoTriggeredAnimation(animationPath);
+                verticalItem.Items.Add(item);
+            }
+            
+            movementItem.Items.Add(verticalItem);
+            contextMenu.Items.Add(movementItem);
+            
+            // Music animations
+            var musicItem = new MenuItem { Header = "Music Animations" };
+            var musicTriggeredItem = new MenuItem { Header = "Start Music Dance" };
+            musicTriggeredItem.Click += (s, e) => TriggerMusicAnimation();
+            musicItem.Items.Add(musicTriggeredItem);
+            
+            if (_currentState == AnimationState.MusicLoop)
+            {
+                var stopMusicItem = new MenuItem { Header = "Stop Music Dance" };
+                stopMusicItem.Click += (s, e) => TriggerStopMusicAnimation();
+                musicItem.Items.Add(stopMusicItem);
+            }
+            
+            contextMenu.Items.Add(musicItem);
+            
+            contextMenu.Items.Add(new Separator());
+            
+            // Regular context menu option
+            var normalMenuItem = new MenuItem { Header = "Show Normal Menu" };
+            normalMenuItem.Click += (s, e) => ShowContextMenu();
+            contextMenu.Items.Add(normalMenuItem);
+            
+            contextMenu.Open(this);
+        }
+        
+        private void TriggerAutoTriggeredAnimation(string animationPath)
+        {
+            // Stop current activity/animation
+            _autoTriggerTimer.Stop();
+            _animationTimer.Stop();
+            
+            // Stop any current activity
+            if (_currentActivity != null)
+            {
+                _currentActivity = null;
+            }
+            
+            // Stop movement if active
+            if (_isMoving)
+            {
+                StopMovement();
+            }
+            
+            // Trigger the specific animation
+            StartAnimation(AnimationState.AutoTriggered, animationPath);
+        }
+        
+        private void TriggerMusicAnimation()
+        {
+            // Stop current activity/animation
+            _autoTriggerTimer.Stop();
+            _animationTimer.Stop();
+            
+            // Stop any current activity
+            if (_currentActivity != null)
+            {
+                _currentActivity = null;
+            }
+            
+            // Stop movement if active
+            if (_isMoving)
+            {
+                StopMovement();
+            }
+            
+            // Start music dance animation
+            StartAnimation(AnimationState.MusicTriggered);
+        }
+        
+        private void TriggerStopMusicAnimation()
+        {
+            // Only stop if currently in music loop
+            if (_currentState == AnimationState.MusicLoop)
+            {
+                StartAnimation(AnimationState.MusicEnd);
+            }
+        }
+        
         private void ResizeGrip_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
@@ -1200,8 +1407,15 @@ namespace PetViewerLinux
             }
             else if (_isWaitingForRightDragOrClick)
             {
-                // This is a right click - show context menu
-                ShowContextMenu();
+                // This is a right click - show appropriate context menu based on Shift key
+                if (_isShiftPressed)
+                {
+                    ShowDeveloperContextMenu();
+                }
+                else
+                {
+                    ShowContextMenu();
+                }
             }
 
             _isWaitingForDragOrClick = false;
