@@ -242,13 +242,10 @@ namespace PetViewerLinux
         
         private void OnAudioActivityChanged(object? sender, AudioActivityChangedEventArgs e)
         {
-            // Only proceed if dance is enabled
-            if (!_isDanceEnabled)
-                return;
-                
             if (e.IsActive)
             {
-                if (!_isMusicPlaying)
+                // Only start tracking if dance is enabled
+                if (_isDanceEnabled && !_isMusicPlaying)
                 {
                     // Audio activity detected - start tracking
                     _musicStartTime = e.Timestamp;
@@ -258,20 +255,14 @@ namespace PetViewerLinux
             }
             else if (!e.IsActive && _isMusicPlaying)
             {
-                // Audio activity stopped - stop music immediately with 1 second delay
+                // Audio activity stopped - stop music tracking
                 _isMusicPlaying = false;
                 _musicDurationTimer.Stop(); // Stop duration checking
-                if (_currentState == AnimationState.MusicLoop)
+                
+                // Stop dancing immediately when music ends (no delay needed)
+                if (_currentState == AnimationState.MusicLoop || _currentState == AnimationState.MusicTriggered)
                 {
-                    // Wait 1 second before stopping to avoid rapid changes
-                    DispatcherTimer.Run(() =>
-                    {
-                        if (!_isMusicPlaying && _currentState == AnimationState.MusicLoop)
-                        {
-                            StartAnimation(AnimationState.MusicEnd);
-                        }
-                        return false;
-                    }, TimeSpan.FromMilliseconds(MUSIC_STOP_DELAY_MS));
+                    StartAnimation(AnimationState.MusicEnd);
                 }
             }
         }
@@ -605,6 +596,9 @@ namespace PetViewerLinux
         
         private void StartAnimation(AnimationState state, string? specificPath = null)
         {
+            // Stop any current animation to properly interrupt looping animations
+            _animationTimer.Stop();
+            
             _currentState = state;
             string animationPath = "";
             _isLooping = false;
@@ -1166,6 +1160,16 @@ namespace PetViewerLinux
                 danceToggleItem.Click += (s, e) => 
                 {
                     _isDanceEnabled = !_isDanceEnabled;
+                    
+                    // If dancing is disabled and currently dancing, stop the music animation
+                    if (!_isDanceEnabled && (_currentState == AnimationState.MusicLoop || _currentState == AnimationState.MusicTriggered))
+                    {
+                        // Stop music tracking and force end the dance
+                        _isMusicPlaying = false;
+                        _musicDurationTimer.Stop();
+                        StartAnimation(AnimationState.MusicEnd);
+                    }
+                    
                     // TODO: Save settings to file for persistence
                     // SaveSettings();
                 };
