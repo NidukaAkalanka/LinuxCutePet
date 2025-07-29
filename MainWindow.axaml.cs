@@ -97,6 +97,12 @@ namespace PetViewerLinux
         private HashSet<string> _criticalAnimations = new HashSet<string> { "startup", "idle", "shutdown" };
         private string? _currentAnimationPath = null;
         private DispatcherTimer _memoryCleanupTimer = null!;
+        
+        // Animation pre-caching system
+        private bool _isPreCaching = false;
+        private bool _preCachingComplete = false;
+        private List<string> _allAnimationPaths = new List<string>();
+        private int _currentPreCacheIndex = 0;
 
         public MainWindow()
         {
@@ -113,6 +119,9 @@ namespace PetViewerLinux
             
             // Initialize pet activities
             InitializePetActivities();
+            
+            // Load dance setting from config
+            _isDanceEnabled = ConfigManager.GetDanceEnabled();
             
             // Initialize audio monitoring
             InitializeAudioMonitoring();
@@ -143,11 +152,44 @@ namespace PetViewerLinux
             this.PointerReleased += Window_PointerReleased;
             this.PointerMoved += Window_PointerMoved;
 
-            // Preload critical animations for better performance
-            PreloadCriticalAnimations();
-
-            // Start with startup animation
-            StartAnimation(AnimationState.Startup);
+            // Check if caching is required (first run)
+            if (ConfigManager.IsCachingRequired())
+            {
+                // Debug: Print path information
+                Console.WriteLine("=== CONFIG DEBUG INFO ===");
+                ConfigManager.DebugPrintPaths();
+                Console.WriteLine("Caching is required - starting pre-caching...");
+                
+                // Test config write immediately
+                try
+                {
+                    var testConfig = new AppConfig { Version = "1.0.0-test" };
+                    ConfigManager.SaveConfig(testConfig);
+                    Console.WriteLine("✅ Config write test successful!");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Config write test failed: {ex.Message}");
+                }
+                Console.WriteLine("========================");
+                
+                // Hide the main window initially for pre-caching
+                this.Hide();
+                
+                // Start animation pre-caching on first run
+                StartAnimationPreCaching();
+            }
+            else
+            {
+                // Debug: Print path information
+                Console.WriteLine("=== CONFIG DEBUG INFO ===");
+                ConfigManager.DebugPrintPaths();
+                Console.WriteLine("Caching not required - config exists, starting pet directly...");
+                Console.WriteLine("========================");
+                
+                // Skip caching, start pet directly
+                StartPet();
+            }
         }
 
         protected override void OnClosing(WindowClosingEventArgs e)
@@ -245,17 +287,8 @@ namespace PetViewerLinux
         
         private void InitializeAudioMonitoring()
         {
-            // Initialize audio monitoring service (Linux-specific for now)
-            if (OperatingSystem.IsLinux())
-            {
-                _audioMonitorService = new LinuxAudioMonitorService();
-            }
-            else
-            {
-                // For Windows, we'd add a WindowsAudioMonitorService later
-                // For now, create a dummy service that doesn't monitor
-                _audioMonitorService = new DummyAudioMonitorService();
-            }
+            // Use the factory to create the appropriate audio monitor service for the platform
+            _audioMonitorService = AudioMonitorFactory.CreateAudioMonitor();
             
             _audioMonitorService.AudioActivityChanged += OnAudioActivityChanged;
             _audioMonitorService.StartMonitoring();
@@ -265,7 +298,7 @@ namespace PetViewerLinux
         {
             if (e.IsActive)
             {
-                // Only start tracking if dance is enabled
+                // Only start tracking if dance is enabled and not already playing
                 if (_isDanceEnabled && !_isMusicPlaying)
                 {
                     // Audio activity detected - start tracking
@@ -701,6 +734,219 @@ namespace PetViewerLinux
             }
         }
         
+        private List<string> GetAllAnimationPaths()
+        {
+            var allPaths = new List<string>();
+            
+            // Basic animations
+            allPaths.AddRange(new[]
+            {
+                "startup", "idle", "shutdown"
+            });
+            
+            // Auto-triggered animations
+            allPaths.AddRange(new[]
+            {
+                "autoTriggered/aside", "autoTriggered/boring", "autoTriggered/down",
+                "autoTriggered/meow", "autoTriggered/squat", "autoTriggered/tennis",
+                "autoTriggered/think", "autoTriggered/yawning"
+            });
+            
+            // Movement animations
+            allPaths.AddRange(new[]
+            {
+                "autoTriggered/move/horizontal/leftToRight/walk",
+                "autoTriggered/move/horizontal/leftToRight/crawl",
+                "autoTriggered/move/horizontal/rightToLeft/walk", 
+                "autoTriggered/move/horizontal/rightToLeft/crawl",
+                "autoTriggered/move/horizontal/top/leftToRight/swing",
+                "autoTriggered/move/horizontal/top/rightToLeft/swing",
+                "autoTriggered/move/vertical/bottomToTop/climb.left",
+                "autoTriggered/move/vertical/bottomToTop/climb.right",
+                "autoTriggered/move/vertical/topToBottom/fall.left",
+                "autoTriggered/move/vertical/topToBottom/fall.right"
+            });
+            
+            // Click triggered animations
+            allPaths.AddRange(new[]
+            {
+                "clickTriggered/click_HEAD",
+                "clickTriggered/click_BODY/0",
+                "clickTriggered/click_BODY/1", 
+                "clickTriggered/click_BODY/2"
+            });
+            
+            // Drag animations
+            allPaths.AddRange(new[]
+            {
+                "dragTriggered", "dragTriggered/loop", "dragTriggered/loopOut",
+                "rightDragTriggered", "rightDragTriggered/loop", "rightDragTriggered/loopOut"
+            });
+            
+            // Music animations
+            allPaths.AddRange(new[]
+            {
+                "musicTriggered", "musicTriggered/loop", "musicTriggered/loopOut"
+            });
+            
+            // Activity animations
+            allPaths.AddRange(new[]
+            {
+                "menuTriggered/calligraphy", "menuTriggered/calligraphy/loop", "menuTriggered/calligraphy/loopOut",
+                "menuTriggered/clean", "menuTriggered/clean/loop", "menuTriggered/clean/loopOut",
+                "menuTriggered/game", "menuTriggered/game/loop", "menuTriggered/game/loopOut",
+                "menuTriggered/paperwork", "menuTriggered/paperwork/loop", "menuTriggered/paperwork/loopOut",
+                "menuTriggered/rope", "menuTriggered/rope/loop", "menuTriggered/rope/loopOut",
+                "menuTriggered/sleep", "menuTriggered/sleep/loop", "menuTriggered/sleep/loopOut",
+                "menuTriggered/stream", "menuTriggered/stream/loop", "menuTriggered/stream/loopOut",
+                "menuTriggered/study", "menuTriggered/study/loop", "menuTriggered/study/loopOut"
+            });
+            
+            return allPaths;
+        }
+        
+        private void StartAnimationPreCaching()
+        {
+            _isPreCaching = true;
+            _allAnimationPaths = GetAllAnimationPaths();
+            _currentPreCacheIndex = 0;
+            
+            var preCacheWindow = new PreCacheWindow();
+            preCacheWindow.Show();
+            
+            // Use a timer to process animations one by one to avoid blocking the UI
+            var preCacheTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(50)
+            };
+            
+            preCacheTimer.Tick += (s, e) =>
+            {
+                if (_currentPreCacheIndex >= _allAnimationPaths.Count)
+                {
+                    // Pre-caching complete
+                    preCacheTimer.Stop();
+                    _isPreCaching = false;
+                    _preCachingComplete = true;
+                    
+                    // Mark caching as complete in config (only for normal caching, not re-caching)
+                    ConfigManager.MarkCachingComplete();
+                    
+                    preCacheWindow.SetCompleted();
+                    
+                    // Close pre-cache window after a short delay and start the pet
+                    var closeTimer = new DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(1000)
+                    };
+                    closeTimer.Tick += (cs, ce) =>
+                    {
+                        closeTimer.Stop();
+                        preCacheWindow.Close();
+                        StartPet();
+                    };
+                    closeTimer.Start();
+                    return;
+                }
+                
+                // Process current animation
+                var animPath = _allAnimationPaths[_currentPreCacheIndex];
+                var frames = LoadAnimationFrames(animPath);
+                
+                // Load all frames to ensure OS caches them
+                foreach (var frame in frames)
+                {
+                    LoadBitmapFromPath(frame);
+                }
+                
+                // Update progress
+                preCacheWindow.UpdateProgress(_currentPreCacheIndex + 1, _allAnimationPaths.Count, animPath);
+                _currentPreCacheIndex++;
+            };
+            
+            preCacheTimer.Start();
+        }
+        
+        private void StartPet()
+        {
+            // Show the main window and start normal pet operations
+            this.Show();
+            StartAnimation(AnimationState.Startup);
+        }
+        
+        public void ReCacheAnimations()
+        {
+            // Clear current cache
+            ClearBitmapCache();
+            
+            // Force garbage collection
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            
+            // Restart pre-caching (forced re-cache - doesn't modify config)
+            this.Hide();
+            StartForcedAnimationPreCaching();
+        }
+        
+        private void StartForcedAnimationPreCaching()
+        {
+            _isPreCaching = true;
+            _allAnimationPaths = GetAllAnimationPaths();
+            _currentPreCacheIndex = 0;
+            
+            var preCacheWindow = new PreCacheWindow();
+            preCacheWindow.Show();
+            
+            // Use a timer to process animations one by one to avoid blocking the UI
+            var preCacheTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(50)
+            };
+            
+            preCacheTimer.Tick += (s, e) =>
+            {
+                if (_currentPreCacheIndex >= _allAnimationPaths.Count)
+                {
+                    // Pre-caching complete (forced re-cache - don't update config)
+                    preCacheTimer.Stop();
+                    _isPreCaching = false;
+                    _preCachingComplete = true;
+                    
+                    preCacheWindow.SetCompleted();
+                    
+                    // Close pre-cache window after a short delay and start the pet
+                    var closeTimer = new DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(1000)
+                    };
+                    closeTimer.Tick += (cs, ce) =>
+                    {
+                        closeTimer.Stop();
+                        preCacheWindow.Close();
+                        StartPet();
+                    };
+                    closeTimer.Start();
+                    return;
+                }
+                
+                // Process current animation
+                var animPath = _allAnimationPaths[_currentPreCacheIndex];
+                var frames = LoadAnimationFrames(animPath);
+                
+                // Load all frames to ensure OS caches them
+                foreach (var frame in frames)
+                {
+                    LoadBitmapFromPath(frame);
+                }
+                
+                // Update progress
+                preCacheWindow.UpdateProgress(_currentPreCacheIndex + 1, _allAnimationPaths.Count, animPath);
+                _currentPreCacheIndex++;
+            };
+            
+            preCacheTimer.Start();
+        }
+        
         private void StartAnimation(AnimationState state, string? specificPath = null)
         {
             // Stop any current animation to properly interrupt looping animations
@@ -1011,6 +1257,13 @@ namespace PetViewerLinux
                 StopMovement();
             }
             
+            // Reset music state on user interaction to prevent false dancing
+            if (_currentState == AnimationState.MusicLoop || _currentState == AnimationState.MusicTriggered)
+            {
+                _isMusicPlaying = false;
+                _musicDurationTimer.Stop();
+            }
+            
             // Determine if click was on head or body
             // Assuming top 1/3 of window is head, rest is body
             double headThreshold = this.Height / 3.0;
@@ -1276,8 +1529,8 @@ namespace PetViewerLinux
                         StartAnimation(AnimationState.MusicEnd);
                     }
                     
-                    // TODO: Save settings to file for persistence
-                    // SaveSettings();
+                    // Save the dance setting to config for persistence
+                    ConfigManager.UpdateDanceEnabled(_isDanceEnabled);
                 };
                 settingsItem.Items.Add(danceToggleItem);
                 
@@ -1406,6 +1659,13 @@ namespace PetViewerLinux
             }
             
             contextMenu.Items.Add(musicItem);
+            
+            contextMenu.Items.Add(new Separator());
+            
+            // Add re-cache animations option
+            var reCacheItem = new MenuItem { Header = "🔄 Re-cache Animations" };
+            reCacheItem.Click += (s, e) => ReCacheAnimations();
+            contextMenu.Items.Add(reCacheItem);
             
             contextMenu.Items.Add(new Separator());
             

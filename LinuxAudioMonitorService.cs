@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -24,8 +25,8 @@ namespace PetViewerLinux
             _isMonitoring = true;
             _cancellationTokenSource = new CancellationTokenSource();
 
-            // Monitor audio activity every 100ms
-            _monitoringTimer = new Timer(CheckAudioActivity, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
+            // Add a 2-second startup delay to avoid false positives from system startup sounds
+            _monitoringTimer = new Timer(CheckAudioActivity, null, TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100));
         }
 
         public void StopMonitoring()
@@ -106,12 +107,77 @@ namespace PetViewerLinux
             try
             {
                 // Check if there are any active sink inputs (applications playing audio)
-                return !string.IsNullOrWhiteSpace(output) && output.Contains("Sink Input #");
+                if (string.IsNullOrWhiteSpace(output))
+                    return false;
+
+                // Look for sink inputs that are actually playing (not muted and have state = RUNNING)
+                var lines = output.Split('\n');
+                bool hasSinkInput = false;
+                bool isRunning = false;
+                bool isMuted = true; // Assume muted until proven otherwise
+                string currentApplication = "";
+                
+                foreach (var line in lines)
+                {
+                    var trimmedLine = line.Trim();
+                    
+                    // Start of a new sink input
+                    if (trimmedLine.StartsWith("Sink Input #"))
+                    {
+                        // If we were tracking a previous sink input and it was active, return true
+                        if (hasSinkInput && isRunning && !isMuted && !IsSystemSound(currentApplication))
+                            return true;
+                            
+                        // Reset for new sink input
+                        hasSinkInput = true;
+                        isRunning = false;
+                        isMuted = true;
+                        currentApplication = "";
+                    }
+                    
+                    // Get application name
+                    if (hasSinkInput && trimmedLine.Contains("application.name ="))
+                    {
+                        currentApplication = trimmedLine.Split('=')[1].Trim().Trim('"');
+                    }
+                    
+                    // Check if this sink input is in RUNNING state
+                    if (hasSinkInput && trimmedLine.Contains("State: RUNNING"))
+                    {
+                        isRunning = true;
+                    }
+                    
+                    // Check if this sink input is not muted
+                    if (hasSinkInput && trimmedLine.Contains("Mute: no"))
+                    {
+                        isMuted = false;
+                    }
+                }
+                
+                // Check the last sink input
+                return hasSinkInput && isRunning && !isMuted && !IsSystemSound(currentApplication);
             }
             catch
             {
                 return false;
             }
+        }
+        
+        private bool IsSystemSound(string applicationName)
+        {
+            if (string.IsNullOrEmpty(applicationName))
+                return false;
+                
+            // Filter out system sounds and notifications that shouldn't trigger dancing
+            var systemSounds = new[]
+            {
+                "libcanberra", "pulseaudio", "gnome-session", "notification",
+                "alert", "system", "bell", "beep", "startup", "login",
+                "org.freedesktop", "org.gnome", "systemd"
+            };
+            
+            var lowerName = applicationName.ToLower();
+            return systemSounds.Any(sys => lowerName.Contains(sys));
         }
 
         public void Dispose()
