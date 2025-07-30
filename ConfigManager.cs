@@ -7,12 +7,6 @@ namespace PetViewerLinux
 {
     public class AppConfig
     {
-        [JsonPropertyName("cachedFirstRun")]
-        public bool CachedFirstRun { get; set; } = false;
-        
-        [JsonPropertyName("lastCacheDate")]
-        public DateTime? LastCacheDate { get; set; }
-        
         [JsonPropertyName("version")]
         public string Version { get; set; } = "1.0.0";
         
@@ -57,46 +51,13 @@ namespace PetViewerLinux
         {
             try
             {
-                Console.WriteLine($"Attempting to save config to: {ConfigFilePath}");
-                
-                // Try a simple string write first
                 var jsonContent = JsonSerializer.Serialize(config, JsonOptions);
-                Console.WriteLine($"JSON serialized: {jsonContent}");
-                
                 File.WriteAllText(ConfigFilePath, jsonContent);
-                Console.WriteLine("File write completed successfully");
-                
-                // Verify the file was written
-                if (File.Exists(ConfigFilePath))
-                {
-                    Console.WriteLine("✅ Config file exists after write");
-                    var content = File.ReadAllText(ConfigFilePath);
-                    Console.WriteLine($"File content: {content}");
-                }
-                else
-                {
-                    Console.WriteLine("❌ Config file does not exist after write");
-                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to save config: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"Failed to save config: {ex.Message}");
             }
-        }
-        
-        public static void MarkCachingComplete()
-        {
-            var config = LoadConfig();
-            config.CachedFirstRun = true;
-            config.LastCacheDate = DateTime.Now;
-            SaveConfig(config);
-        }
-        
-        public static bool IsCachingRequired()
-        {
-            var config = LoadConfig();
-            return !config.CachedFirstRun;
         }
         
         public static void UpdateDanceEnabled(bool isEnabled)

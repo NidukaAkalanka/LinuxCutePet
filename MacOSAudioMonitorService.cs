@@ -43,56 +43,26 @@ namespace PetViewerLinux
 
             try
             {
-                // Use AppleScript to check macOS audio output
-                var process = new Process
+                // For macOS, use process detection as it's more reliable than volume checking
+                CheckAudioProcesses();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"macOS audio monitoring error: {ex.Message}");
+                
+                // Fallback: assume no audio activity
+                if (_lastActivityState != false)
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "osascript",
-                        Arguments = "-e \"output volume of (get volume settings)\"",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true
-                    }
-                };
-
-                process.Start();
-                var output = process.StandardOutput.ReadToEnd();
-                var error = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                // If AppleScript fails, fallback to process detection
-                if (string.IsNullOrEmpty(output) || !string.IsNullOrEmpty(error))
-                {
-                    CheckAudioProcesses();
-                    return;
-                }
-
-                // Check if audio is actively playing (simple volume check)
-                var isActive = HasAudioActivity();
-
-                // Only notify if state changed
-                if (isActive != _lastActivityState)
-                {
-                    _lastActivityState = isActive;
-                    
-                    // Dispatch to UI thread
+                    _lastActivityState = false;
                     Dispatcher.UIThread.Post(() =>
                     {
                         AudioActivityChanged?.Invoke(this, new AudioActivityChangedEventArgs
                         {
-                            IsActive = isActive,
+                            IsActive = false,
                             Timestamp = DateTime.Now
                         });
                     });
                 }
-            }
-            catch (Exception ex)
-            {
-                // Fallback to process-based detection
-                System.Diagnostics.Debug.WriteLine($"macOS audio monitoring error: {ex.Message}");
-                CheckAudioProcesses();
             }
         }
 
@@ -134,6 +104,7 @@ namespace PetViewerLinux
                         
                         if (!string.IsNullOrWhiteSpace(output))
                         {
+                            Console.WriteLine($"macOS: Audio process detected - {processName}");
                             isActive = true;
                             break;
                         }
@@ -149,6 +120,7 @@ namespace PetViewerLinux
                 if (isActive != _lastActivityState)
                 {
                     _lastActivityState = isActive;
+                    Console.WriteLine($"macOS: Audio state changed to {isActive}");
                     
                     Dispatcher.UIThread.Post(() =>
                     {
@@ -177,37 +149,6 @@ namespace PetViewerLinux
                         });
                     });
                 }
-            }
-        }
-
-        private bool HasAudioActivity()
-        {
-            try
-            {
-                // Check if any audio streams are active using macOS system commands
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "pmset",
-                        Arguments = "-g audio",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true
-                    }
-                };
-
-                process.Start();
-                var output = process.StandardOutput.ReadToEnd();
-                process.WaitForExit();
-
-                // If output contains "audio", there might be audio activity
-                return !string.IsNullOrEmpty(output) && output.ToLower().Contains("audio");
-            }
-            catch
-            {
-                // Fallback: assume there might be audio activity if processes are running
-                return true; // Let process detection handle it
             }
         }
 

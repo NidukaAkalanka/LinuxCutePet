@@ -152,44 +152,12 @@ namespace PetViewerLinux
             this.PointerReleased += Window_PointerReleased;
             this.PointerMoved += Window_PointerMoved;
 
-            // Check if caching is required (first run)
-            if (ConfigManager.IsCachingRequired())
-            {
-                // Debug: Print path information
-                Console.WriteLine("=== CONFIG DEBUG INFO ===");
-                ConfigManager.DebugPrintPaths();
-                Console.WriteLine("Caching is required - starting pre-caching...");
-                
-                // Test config write immediately
-                try
-                {
-                    var testConfig = new AppConfig { Version = "1.0.0-test" };
-                    ConfigManager.SaveConfig(testConfig);
-                    Console.WriteLine("✅ Config write test successful!");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"❌ Config write test failed: {ex.Message}");
-                }
-                Console.WriteLine("========================");
-                
-                // Hide the main window initially for pre-caching
-                this.Hide();
-                
-                // Start animation pre-caching on first run
-                StartAnimationPreCaching();
-            }
-            else
-            {
-                // Debug: Print path information
-                Console.WriteLine("=== CONFIG DEBUG INFO ===");
-                ConfigManager.DebugPrintPaths();
-                Console.WriteLine("Caching not required - config exists, starting pet directly...");
-                Console.WriteLine("========================");
-                
-                // Skip caching, start pet directly
-                StartPet();
-            }
+            // Always run pre-caching on startup for optimal performance
+            // Hide the main window initially for pre-caching
+            this.Hide();
+            
+            // Start animation pre-caching
+            StartAnimationPreCaching();
         }
 
         protected override void OnClosing(WindowClosingEventArgs e)
@@ -828,9 +796,6 @@ namespace PetViewerLinux
                     preCacheTimer.Stop();
                     _isPreCaching = false;
                     _preCachingComplete = true;
-                    
-                    // Mark caching as complete in config (only for normal caching, not re-caching)
-                    ConfigManager.MarkCachingComplete();
                     
                     preCacheWindow.SetCompleted();
                     

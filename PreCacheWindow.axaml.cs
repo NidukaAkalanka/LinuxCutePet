@@ -52,7 +52,7 @@ namespace PetViewerLinux
 
             var infoText = new TextBlock
             {
-                Text = "This only happens on first run. Please wait...",
+                Text = "This might take some time. Please wait...",
                 FontSize = 10,
                 Foreground = Brushes.Gray,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center

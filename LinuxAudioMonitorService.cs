@@ -110,10 +110,10 @@ namespace PetViewerLinux
                 if (string.IsNullOrWhiteSpace(output))
                     return false;
 
-                // Look for sink inputs that are actually playing (not muted and have state = RUNNING)
+                // Look for sink inputs that are actually playing (not corked and not muted)
                 var lines = output.Split('\n');
                 bool hasSinkInput = false;
-                bool isRunning = false;
+                bool isNotCorked = false; // In PipeWire/PulseAudio, "Corked: no" means playing
                 bool isMuted = true; // Assume muted until proven otherwise
                 string currentApplication = "";
                 
@@ -125,12 +125,15 @@ namespace PetViewerLinux
                     if (trimmedLine.StartsWith("Sink Input #"))
                     {
                         // If we were tracking a previous sink input and it was active, return true
-                        if (hasSinkInput && isRunning && !isMuted && !IsSystemSound(currentApplication))
+                        if (hasSinkInput && isNotCorked && !isMuted && !IsSystemSound(currentApplication))
+                        {
+                            Console.WriteLine($"Linux: Active audio detected - App: {currentApplication}");
                             return true;
+                        }
                             
                         // Reset for new sink input
                         hasSinkInput = true;
-                        isRunning = false;
+                        isNotCorked = false;
                         isMuted = true;
                         currentApplication = "";
                     }
@@ -141,10 +144,10 @@ namespace PetViewerLinux
                         currentApplication = trimmedLine.Split('=')[1].Trim().Trim('"');
                     }
                     
-                    // Check if this sink input is in RUNNING state
-                    if (hasSinkInput && trimmedLine.Contains("State: RUNNING"))
+                    // Check if this sink input is not corked (actively playing)
+                    if (hasSinkInput && trimmedLine.Contains("Corked: no"))
                     {
-                        isRunning = true;
+                        isNotCorked = true;
                     }
                     
                     // Check if this sink input is not muted
@@ -155,7 +158,12 @@ namespace PetViewerLinux
                 }
                 
                 // Check the last sink input
-                return hasSinkInput && isRunning && !isMuted && !IsSystemSound(currentApplication);
+                var result = hasSinkInput && isNotCorked && !isMuted && !IsSystemSound(currentApplication);
+                if (result)
+                {
+                    Console.WriteLine($"Linux: Active audio detected (last) - App: {currentApplication}");
+                }
+                return result;
             }
             catch
             {

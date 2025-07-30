@@ -101,6 +101,7 @@ namespace PetViewerLinux
                     var processes = Process.GetProcessesByName(processName);
                     if (processes.Length > 0)
                     {
+                        Console.WriteLine($"Windows: Audio process detected - {processName}");
                         isActive = true;
                         break;
                     }
@@ -110,6 +111,7 @@ namespace PetViewerLinux
                 if (isActive != _lastActivityState)
                 {
                     _lastActivityState = isActive;
+                    Console.WriteLine($"Windows: Audio state changed to {isActive}");
                     
                     Dispatcher.UIThread.Post(() =>
                     {
