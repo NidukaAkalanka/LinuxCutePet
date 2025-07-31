@@ -104,7 +104,12 @@ namespace PetViewerLinux
         private List<string> _allAnimationPaths = new List<string>();
         private int _currentPreCacheIndex = 0;
 
-        public MainWindow()
+        // Parameterless constructor for XAML compatibility
+        public MainWindow() : this(skipPreCaching: false)
+        {
+        }
+
+        public MainWindow(bool skipPreCaching = false)
         {
             InitializeComponent();
 
@@ -158,12 +163,22 @@ namespace PetViewerLinux
             this.PointerReleased += Window_PointerReleased;
             this.PointerMoved += Window_PointerMoved;
 
-            // Always run pre-caching on startup for optimal performance
-            // Hide the main window initially for pre-caching
-            this.Hide();
-            
-            // Start animation pre-caching
-            StartAnimationPreCaching();
+            if (!skipPreCaching)
+            {
+                // Always run pre-caching on startup for optimal performance
+                // Hide the main window initially for pre-caching
+                this.Hide();
+                
+                // Start animation pre-caching
+                StartAnimationPreCaching();
+            }
+            else
+            {
+                // Pre-caching already done by StartupManager
+                _preCachingComplete = true;
+                // Start with startup animation (proper sequence)
+                StartPet();
+            }
         }
 
         protected override void OnClosing(WindowClosingEventArgs e)

@@ -1,12 +1,25 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
+  
+  <!-- Platform-specific properties -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <OutputType>WinExe</OutputType>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <OutputType>WinExe</OutputType>
+    <!-- Additional macOS specific settings to hide console -->
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <CreateHardenedRuntime>false</CreateHardenedRuntime>
+  </PropertyGroup>
+  
   <ItemGroup>
     <!-- Exclude Assets from embedded resources - they will be external files -->
     <None Remove="Assets\**" />
