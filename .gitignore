@@ -4,6 +4,7 @@ obj/
 
 # Build output directories
 dist/
+builds/
 
 # IDE files
 .vs/

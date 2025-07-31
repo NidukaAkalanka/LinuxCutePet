@@ -131,6 +131,12 @@ namespace PetViewerLinux
             var resizeGrip = this.FindControl<Rectangle>("ResizeGrip");
             _petImage = this.FindControl<Image>("PetImage");
 
+            // Initialize default pet image
+            if (_petImage != null)
+            {
+                ShowSingleFrame("000.png");
+            }
+
             // Add null checks to avoid the CS8602 warning
             if (mainGrid != null)
             {
@@ -610,19 +616,14 @@ namespace PetViewerLinux
             for (int i = 0; i < 1000; i++)
             {
                 string frameName = $"{i:D3}.png";
-                string resourcePath = $"avares://PetViewerLinux/Assets/{animationPath}/{frameName}";
+                string filePath = System.IO.Path.Combine(GetAssetsDirectory(), animationPath, frameName);
                 
-                // Check if the resource exists by trying to access it
-                try
+                // Check if the file exists
+                if (File.Exists(filePath))
                 {
-                    var uri = new Uri(resourcePath);
-                    using var asset = Avalonia.Platform.AssetLoader.Open(uri);
-                    if (asset != null)
-                    {
-                        frames.Add(resourcePath);
-                    }
+                    frames.Add(filePath);
                 }
-                catch
+                else
                 {
                     // If we can't load this frame, we've reached the end
                     break;
@@ -630,6 +631,13 @@ namespace PetViewerLinux
             }
             
             return frames;
+        }
+        
+        private string GetAssetsDirectory()
+        {
+            // Get the directory where the executable is located
+            string executablePath = AppContext.BaseDirectory;
+            return System.IO.Path.Combine(executablePath, "Assets");
         }
         
         // Memory optimization methods
@@ -665,22 +673,26 @@ namespace PetViewerLinux
             }
         }
         
-        private Bitmap? LoadBitmapFromPath(string resourcePath)
+        private Bitmap? LoadBitmapFromPath(string filePath)
         {
             // Check cache first
-            if (_bitmapCache.TryGetValue(resourcePath, out var cachedBitmap))
+            if (_bitmapCache.TryGetValue(filePath, out var cachedBitmap))
             {
                 return cachedBitmap;
             }
             
-            // Load from disk
+            // Load from file system
             try
             {
-                var uri = new Uri(resourcePath);
-                var bitmap = new Bitmap(Avalonia.Platform.AssetLoader.Open(uri));
+                if (!File.Exists(filePath))
+                {
+                    return null;
+                }
+                
+                var bitmap = new Bitmap(filePath);
                 
                 // Cache the bitmap
-                _bitmapCache[resourcePath] = bitmap;
+                _bitmapCache[filePath] = bitmap;
                 return bitmap;
             }
             catch
@@ -1097,8 +1109,8 @@ namespace PetViewerLinux
         {
             if (_petImage != null)
             {
-                string resourcePath = $"avares://PetViewerLinux/Assets/{framePath}";
-                var bitmap = LoadBitmapFromPath(resourcePath);
+                string filePath = System.IO.Path.Combine(GetAssetsDirectory(), framePath);
+                var bitmap = LoadBitmapFromPath(filePath);
                 
                 if (bitmap != null)
                 {

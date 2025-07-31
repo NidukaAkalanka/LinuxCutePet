@@ -8,8 +8,10 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Exclude Assets from embedded resources - they will be external files -->
     <None Remove="Assets\**" />
-    <AvaloniaResource Include="Assets\**" />
+    <!-- Remove the line below to exclude Assets from the executable -->
+    <!-- <AvaloniaResource Include="Assets\**" /> -->
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.2" />
