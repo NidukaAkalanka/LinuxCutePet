@@ -352,6 +352,134 @@ namespace PetViewerLinux
             return this.Position.Y >= _screenBounds.Bottom - this.Height - 10; // Within 10 pixels of bottom edge
         }
         
+        private bool IsWindowOutOfBounds()
+        {
+            // Check if the window is completely or mostly outside the screen bounds
+            var windowLeft = this.Position.X;
+            var windowRight = this.Position.X + this.Width;
+            var windowTop = this.Position.Y;
+            var windowBottom = this.Position.Y + this.Height;
+            
+            // Consider out of bounds if more than 80% of the window is outside screen
+            var visibleArea = 0.0;
+            
+            // Calculate visible area
+            var visibleLeft = Math.Max(windowLeft, _screenBounds.X);
+            var visibleRight = Math.Min(windowRight, _screenBounds.Right);
+            var visibleTop = Math.Max(windowTop, _screenBounds.Y);
+            var visibleBottom = Math.Min(windowBottom, _screenBounds.Bottom);
+            
+            if (visibleLeft < visibleRight && visibleTop < visibleBottom)
+            {
+                visibleArea = (visibleRight - visibleLeft) * (visibleBottom - visibleTop);
+            }
+            
+            var totalArea = this.Width * this.Height;
+            var visiblePercentage = visibleArea / totalArea;
+            
+            return visiblePercentage < 0.2; // Less than 20% visible = out of bounds
+        }
+        
+        private void RepositionWindowToBounds()
+        {
+            if (!IsWindowOutOfBounds()) return;
+            
+            var currentPos = this.Position;
+            var newX = currentPos.X;
+            var newY = currentPos.Y;
+            
+            // Determine which edge the window is closest to
+            var distanceToLeft = Math.Abs(currentPos.X - _screenBounds.X);
+            var distanceToRight = Math.Abs(currentPos.X - (_screenBounds.Right - (int)this.Width));
+            var distanceToTop = Math.Abs(currentPos.Y - _screenBounds.Y);
+            var distanceToBottom = Math.Abs(currentPos.Y - (_screenBounds.Bottom - (int)this.Height));
+            
+            // Find the minimum distance to determine closest edge
+            var minDistance = Math.Min(Math.Min(distanceToLeft, distanceToRight), 
+                                     Math.Min(distanceToTop, distanceToBottom));
+            
+            // Reposition to the closest edge with a small margin
+            const int margin = 5;
+            
+            if (minDistance == distanceToLeft)
+            {
+                // Snap to left edge
+                newX = _screenBounds.X + margin;
+            }
+            else if (minDistance == distanceToRight)
+            {
+                // Snap to right edge
+                newX = _screenBounds.Right - (int)this.Width - margin;
+            }
+            else if (minDistance == distanceToTop)
+            {
+                // Snap to top edge
+                newY = _screenBounds.Y + margin;
+            }
+            else if (minDistance == distanceToBottom)
+            {
+                // Snap to bottom edge
+                newY = _screenBounds.Bottom - (int)this.Height - margin;
+            }
+            
+            // Ensure the repositioned window is fully within bounds
+            newX = Math.Max(_screenBounds.X, Math.Min(newX, _screenBounds.Right - (int)this.Width));
+            newY = Math.Max(_screenBounds.Y, Math.Min(newY, _screenBounds.Bottom - (int)this.Height));
+            
+            this.Position = new PixelPoint(newX, newY);
+        }
+        
+        private void EnsureProperPositionForClimbing(string animationPath)
+        {
+            var currentPos = this.Position;
+            var newX = currentPos.X;
+            var newY = currentPos.Y;
+            bool needsRepositioning = false;
+            
+            if (animationPath.Contains("climb"))
+            {
+                // For climbing animations (bottom to top), ensure the pet is at the bottom edge
+                // and positioned properly on the left or right side
+                if (animationPath.Contains("climb.left"))
+                {
+                    // Position at bottom-left edge
+                    newX = _screenBounds.X + 10; // Small margin from left edge
+                    newY = _screenBounds.Bottom - (int)this.Height - 10; // Small margin from bottom
+                    needsRepositioning = true;
+                }
+                else if (animationPath.Contains("climb.right"))
+                {
+                    // Position at bottom-right edge  
+                    newX = _screenBounds.Right - (int)this.Width - 10; // Small margin from right edge
+                    newY = _screenBounds.Bottom - (int)this.Height - 10; // Small margin from bottom
+                    needsRepositioning = true;
+                }
+            }
+            else if (animationPath.Contains("fall"))
+            {
+                // For falling animations (top to bottom), ensure the pet is at the top edge
+                if (animationPath.Contains("fall.left"))
+                {
+                    // Position at top-left edge
+                    newX = _screenBounds.X + 10;
+                    newY = _screenBounds.Y + 10;
+                    needsRepositioning = true;
+                }
+                else if (animationPath.Contains("fall.right"))
+                {
+                    // Position at top-right edge
+                    newX = _screenBounds.Right - (int)this.Width - 10;
+                    newY = _screenBounds.Y + 10;
+                    needsRepositioning = true;
+                }
+            }
+            
+            if (needsRepositioning)
+            {
+                this.Position = new PixelPoint(newX, newY);
+            }
+        }
+        
         private bool IsCloserToLeft()
         {
             double centerX = this.Position.X + this.Width / 2;
@@ -452,29 +580,63 @@ namespace PetViewerLinux
                 {
                     deltaY = -_moveSpeed;
                     
-                    // Check if we've reached the top edge
+                    // Check if we've reached the top edge or if window is going out of bounds
                     if (IsAtTopEdge())
                     {
                         StopMovement();
                         return;
+                    }
+                    
+                    // For climbing animations, ensure we don't go out of bounds
+                    if (_currentMoveAnimationPath.Contains("climb"))
+                    {
+                        var nextY = currentPos.Y + deltaY;
+                        if (nextY < _screenBounds.Y)
+                        {
+                            // Reposition to stay within bounds before continuing
+                            this.Position = new PixelPoint(currentPos.X, _screenBounds.Y);
+                            StopMovement();
+                            return;
+                        }
                     }
                 }
                 else if (_currentMoveAnimationPath.Contains("topToBottom"))
                 {
                     deltaY = _moveSpeed;
                     
-                    // Check if we've reached the bottom edge
+                    // Check if we've reached the bottom edge or if window is going out of bounds
                     if (IsAtBottomEdge())
                     {
                         StopMovement();
                         return;
                     }
+                    
+                    // For falling animations, ensure we don't go out of bounds
+                    if (_currentMoveAnimationPath.Contains("fall"))
+                    {
+                        var nextY = currentPos.Y + deltaY;
+                        if (nextY > _screenBounds.Bottom - this.Height)
+                        {
+                            // Reposition to stay within bounds before continuing
+                            this.Position = new PixelPoint(currentPos.X, _screenBounds.Bottom - (int)this.Height);
+                            StopMovement();
+                            return;
+                        }
+                    }
                 }
             }
             
-            // Apply movement without bounds checking for natural movement
+            // Apply movement with bounds checking for vertical climbing/falling
             var newX = currentPos.X + deltaX;
             var newY = currentPos.Y + deltaY;
+            
+            // Additional bounds check for climbing animations to prevent going out of screen
+            if (_currentMoveAnimationPath != null && (_currentMoveAnimationPath.Contains("climb") || _currentMoveAnimationPath.Contains("fall")))
+            {
+                // Ensure the window stays within screen bounds during vertical movement
+                newX = Math.Max(_screenBounds.X, Math.Min(newX, _screenBounds.Right - (int)this.Width));
+                newY = Math.Max(_screenBounds.Y, Math.Min(newY, _screenBounds.Bottom - (int)this.Height));
+            }
             
             this.Position = new PixelPoint(newX, newY);
         }
@@ -1085,6 +1247,14 @@ namespace PetViewerLinux
                 case AnimationState.MoveLoop:
                     if (_currentMoveAnimationPath != null)
                     {
+                        // Check if window is out of bounds before starting movement
+                        // This prevents climbing out of view when at screen edges
+                        if (_currentMoveAnimationPath.Contains("climb") || _currentMoveAnimationPath.Contains("fall"))
+                        {
+                            // More aggressive repositioning for climbing animations
+                            EnsureProperPositionForClimbing(_currentMoveAnimationPath);
+                        }
+                        
                         animationPath = $"{_currentMoveAnimationPath}/loop";
                         _isLooping = true;
                         // Start movement during loop
@@ -1352,6 +1522,10 @@ namespace PetViewerLinux
             {
                 // End drag sequence
                 _isDragging = false;
+                
+                // Check if window is out of bounds and reposition if needed
+                RepositionWindowToBounds();
+                
                 if (_currentActivity == null)
                 {
                     _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
@@ -1362,6 +1536,10 @@ namespace PetViewerLinux
             {
                 // End right drag sequence
                 _isRightDragging = false;
+                
+                // Check if window is out of bounds and reposition if needed
+                RepositionWindowToBounds();
+                
                 if (_currentActivity == null)
                 {
                     _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
@@ -1739,6 +1917,10 @@ namespace PetViewerLinux
             {
                 // End drag sequence
                 _isDragging = false;
+                
+                // Check if window is out of bounds and reposition if needed
+                RepositionWindowToBounds();
+                
                 if (_currentActivity == null)
                 {
                     _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
@@ -1749,6 +1931,10 @@ namespace PetViewerLinux
             {
                 // End right drag sequence
                 _isRightDragging = false;
+                
+                // Check if window is out of bounds and reposition if needed
+                RepositionWindowToBounds();
+                
                 if (_currentActivity == null)
                 {
                     _autoTriggerTimer.Stop(); // Stop auto-trigger during drag end animation
