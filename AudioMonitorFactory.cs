@@ -19,10 +19,10 @@ namespace PetViewerLinux
             {
                 return new WindowsAudioMonitorService();
             }
-            else if (OperatingSystem.IsMacOS())
-            {
-                return new MacOSAudioMonitorService();
-            }
+            // else if (OperatingSystem.IsMacOS())
+            // {
+            //     return new MacOSAudioMonitorService();
+            // }
             else
             {
                 // Fallback for any other platforms
@@ -41,7 +41,7 @@ namespace PetViewerLinux
             {
                 AudioPlatform.Linux => new LinuxAudioMonitorService(),
                 AudioPlatform.Windows => new WindowsAudioMonitorService(),
-                AudioPlatform.MacOS => new MacOSAudioMonitorService(),
+                //AudioPlatform.MacOS => new MacOSAudioMonitorService(),
                 AudioPlatform.Dummy => new DummyAudioMonitorService(),
                 _ => throw new ArgumentException($"Unsupported platform: {platform}")
             };
@@ -57,8 +57,8 @@ namespace PetViewerLinux
                 return AudioPlatform.Linux;
             else if (OperatingSystem.IsWindows())
                 return AudioPlatform.Windows;
-            else if (OperatingSystem.IsMacOS())
-                return AudioPlatform.MacOS;
+            // else if (OperatingSystem.IsMacOS())
+            //     return AudioPlatform.MacOS;
             else
                 return AudioPlatform.Dummy;
         }
@@ -68,7 +68,7 @@ namespace PetViewerLinux
     {
         Linux,
         Windows,
-        MacOS,
+        //MacOS,
         Dummy
     }
 }

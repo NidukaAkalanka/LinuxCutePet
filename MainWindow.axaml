@@ -7,7 +7,7 @@
         SystemDecorations="None"
         TransparencyLevelHint="Transparent"
         CanResize="True"
-        ExtendClientAreaToDecorationsHint="True"git
+        ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         WindowStartupLocation="CenterScreen">
 
