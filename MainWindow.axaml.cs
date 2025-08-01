@@ -494,6 +494,12 @@ namespace PetViewerLinux
             return centerY < screenCenterY;
         }
         
+        private bool IsOnAnyEdge()
+        {
+            // Check if the pet is actually at any edge of the screen
+            return IsAtLeftEdge() || IsAtRightEdge() || IsAtTopEdge() || IsAtBottomEdge();
+        }
+        
         private string? GetMoveAnimationBasedOnPosition()
         {
             // Special case: if at top edge, use swing animation
@@ -527,17 +533,25 @@ namespace PetViewerLinux
             else
             {
                 // Determine vertical movement
-                // Use .left/.right based on which side of screen the pet is on
-                var sideSuffix = IsCloserToLeft() ? "left" : "right";
-                
+                // For climbing animations, only allow if pet is actually at an edge
                 if (IsCloserToTop())
                 {
-                    // Move from top to bottom
+                    // Move from top to bottom (falling) - allowed from any position
+                    var sideSuffix = IsCloserToLeft() ? "left" : "right";
                     return $"autoTriggered/move/vertical/topToBottom/fall.{sideSuffix}";
                 }
                 else
                 {
-                    // Move from bottom to top
+                    // Move from bottom to top (climbing) - only allow if at edge
+                    if (!IsOnAnyEdge())
+                    {
+                        // Pet is not at an edge, can't climb on nothing
+                        // Return null to fall back to idle and let random picker try again later
+                        return null;
+                    }
+                    
+                    // Pet is at an edge, determine which side to climb
+                    var sideSuffix = IsCloserToLeft() ? "left" : "right";
                     return $"autoTriggered/move/vertical/bottomToTop/climb.{sideSuffix}";
                 }
             }
