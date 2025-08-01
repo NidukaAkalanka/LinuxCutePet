@@ -4,11 +4,17 @@
 The LinuxCutePet application now supports a reusable activity system that allows the pet to perform various activities with their own animations and context menu options.
 
 ## Current Activities
-The application currently supports three activities:
+The application currently supports multiple activities:
 
-1. **Sleep** - "Sleep" → "Awake"
-2. **Study** - "Study" → "Stop studying"  
-3. **Code** - "Code" → "Shutdown PC"
+1. **Sleep** - "Sleep" → "Wake up"
+2. **Study** - "Study" → "Stop Studying"  
+3. **Stream** - "Stream" → "End Stream"
+4. **Clean** - "Screen-cleaning" → "Stop Cleaning"
+5. **Calligraphy** - "Calligraphy" → "Stop Calligraphy"
+6. **Game** - "Gaming" → "Stop Gaming"
+7. **Rope** - "Rope-Skipping" → "Stop Skipping"
+8. **Paperwork** - "Do Taxes" → "Too much Tax"
+9. **Type with me** - "Type with me" → "Stop typing"
 
 ## Directory Structure
 Each activity follows this directory structure under `Assets/menuTriggered/`:

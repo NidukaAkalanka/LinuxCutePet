@@ -801,6 +801,18 @@ namespace PetViewerLinux
                         AnimationState.ActivityEnd
                     )
                 },
+                {
+                    "type_with_me",
+                    new PetActivity(
+                        "type_with_me",
+                        "Type with me",
+                        "Stop typing",
+                        "menuTriggered/type_with_me",
+                        AnimationState.ActivityStart,
+                        AnimationState.ActivityLoop,
+                        AnimationState.ActivityEnd
+                    )
+                },
             };
         }
         
