@@ -103,6 +103,12 @@ namespace PetViewerLinux
         private bool _preCachingComplete = false;
         private List<string> _allAnimationPaths = new List<string>();
         private int _currentPreCacheIndex = 0;
+        
+        // Programmatic resize system
+        private bool _isInResizeMode = false;
+        private const double RESIZE_STEP = 30.0; // Pixels to increase/decrease per step
+        private const double MIN_WINDOW_SIZE = 150.0; // Minimum window size
+        private const double MAX_WINDOW_SIZE = 800.0; // Maximum window size
 
         // Parameterless constructor for XAML compatibility
         public MainWindow() : this(skipPreCaching: false)
@@ -127,6 +133,11 @@ namespace PetViewerLinux
             
             // Load dance setting from config
             _isDanceEnabled = ConfigManager.GetDanceEnabled();
+            
+            // Load window size from config
+            var (configWidth, configHeight) = ConfigManager.GetWindowSize();
+            this.Width = configWidth;
+            this.Height = configHeight;
             
             // Initialize audio monitoring
             InitializeAudioMonitoring();
@@ -1412,21 +1423,27 @@ namespace PetViewerLinux
         
         private void AutoTriggerTimer_Tick(object? sender, EventArgs e)
         {
-            // Only trigger if currently in idle state, no activity is active, and not currently moving
-            if (_currentState == AnimationState.Idle && _currentActivity == null && !_isMoving)
+            // Only trigger if currently in idle state, no activity is active, not currently moving, and not in resize mode
+            if (_currentState == AnimationState.Idle && _currentActivity == null && !_isMoving && !_isInResizeMode)
             {
                 _autoTriggerTimer.Stop();
                 StartAnimation(AnimationState.AutoTriggered);
             }
             else
             {
-                // Restart timer with new random interval if not in idle or if currently moving
+                // Restart timer with new random interval if not in idle, currently moving, or in resize mode
                 _autoTriggerTimer.Interval = TimeSpan.FromSeconds(GetRandomIdleTime());
             }
         }
 
         private void HandleClick(Point clickPosition)
         {
+            // Don't handle clicks during resize mode
+            if (_isInResizeMode)
+            {
+                return;
+            }
+            
             // Stop any ongoing movement when user clicks
             if (_isMoving)
             {
@@ -1589,6 +1606,12 @@ namespace PetViewerLinux
         
         private void HandleDragStart()
         {
+            // Don't handle drag during resize mode
+            if (_isInResizeMode)
+            {
+                return;
+            }
+            
             _isDragging = true;
             
             // Stop any ongoing movement
@@ -1620,6 +1643,12 @@ namespace PetViewerLinux
         
         private void HandleRightDragStart()
         {
+            // Don't handle right drag during resize mode
+            if (_isInResizeMode)
+            {
+                return;
+            }
+            
             _isRightDragging = true;
             
             // Stop any ongoing movement
@@ -1718,6 +1747,11 @@ namespace PetViewerLinux
                 };
                 settingsItem.Items.Add(danceToggleItem);
                 
+                // Add Resize option
+                var resizeItem = new MenuItem { Header = "Resize" };
+                resizeItem.Click += (s, e) => StartResizeMode();
+                settingsItem.Items.Add(resizeItem);
+                
                 contextMenu.Items.Add(settingsItem);
             }
             else
@@ -1739,6 +1773,96 @@ namespace PetViewerLinux
             
             contextMenu.Items.Add(exitItem);
             contextMenu.Open(this);
+        }
+        
+        private void StartResizeMode()
+        {
+            // Stop all current animations and activities
+            _isInResizeMode = true;
+            
+            // Stop any ongoing movement or activities
+            if (_isMoving)
+            {
+                StopMovement();
+            }
+            
+            if (_currentActivity != null)
+            {
+                StopActivity();
+            }
+            
+            // Stop all timers that might trigger animations
+            _autoTriggerTimer.Stop();
+            
+            // Force idle state during resize mode
+            if (_currentState != AnimationState.Idle)
+            {
+                StartAnimation(AnimationState.Idle);
+            }
+            
+            // Show resize context menu
+            ShowResizeContextMenu();
+        }
+        
+        private void ShowResizeContextMenu()
+        {
+            var contextMenu = new ContextMenu();
+            
+            // Increase size option
+            var increaseItem = new MenuItem { Header = "🔺 Increase Size" };
+            increaseItem.Click += (s, e) => {
+                IncreaseWindowSize();
+                ShowResizeContextMenu(); // Show menu again after resize
+            };
+            contextMenu.Items.Add(increaseItem);
+            
+            // Decrease size option
+            var decreaseItem = new MenuItem { Header = "🔻 Decrease Size" };
+            decreaseItem.Click += (s, e) => {
+                DecreaseWindowSize();
+                ShowResizeContextMenu(); // Show menu again after resize
+            };
+            contextMenu.Items.Add(decreaseItem);
+            
+            // Separator
+            contextMenu.Items.Add(new Separator());
+            
+            // Done option
+            var doneItem = new MenuItem { Header = "✅ Done" };
+            doneItem.Click += (s, e) => ExitResizeMode();
+            contextMenu.Items.Add(doneItem);
+            
+            contextMenu.Open(this);
+        }
+        
+        private void IncreaseWindowSize()
+        {
+            var newWidth = Math.Min(this.Width + RESIZE_STEP, MAX_WINDOW_SIZE);
+            var newHeight = Math.Min(this.Height + RESIZE_STEP, MAX_WINDOW_SIZE);
+            
+            this.Width = newWidth;
+            this.Height = newHeight;
+        }
+        
+        private void DecreaseWindowSize()
+        {
+            var newWidth = Math.Max(this.Width - RESIZE_STEP, MIN_WINDOW_SIZE);
+            var newHeight = Math.Max(this.Height - RESIZE_STEP, MIN_WINDOW_SIZE);
+            
+            this.Width = newWidth;
+            this.Height = newHeight;
+        }
+        
+        private void ExitResizeMode()
+        {
+            _isInResizeMode = false;
+            
+            // Save the current window size to config
+            ConfigManager.UpdateWindowSize(this.Width, this.Height);
+            
+            // Resume normal operation
+            _autoTriggerTimer.Interval = TimeSpan.FromSeconds(GetRandomIdleTime());
+            _autoTriggerTimer.Start();
         }
         
         private void ShowDeveloperContextMenu()

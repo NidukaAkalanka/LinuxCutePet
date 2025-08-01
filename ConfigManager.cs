@@ -12,6 +12,12 @@ namespace PetViewerLinux
         
         [JsonPropertyName("isDanceEnabled")]
         public bool IsDanceEnabled { get; set; } = true;
+        
+        [JsonPropertyName("windowWidth")]
+        public double WindowWidth { get; set; } = 300.0;
+        
+        [JsonPropertyName("windowHeight")]
+        public double WindowHeight { get; set; } = 300.0;
     }
     
     public static class ConfigManager
@@ -71,6 +77,20 @@ namespace PetViewerLinux
         {
             var config = LoadConfig();
             return config.IsDanceEnabled;
+        }
+        
+        public static void UpdateWindowSize(double width, double height)
+        {
+            var config = LoadConfig();
+            config.WindowWidth = width;
+            config.WindowHeight = height;
+            SaveConfig(config);
+        }
+        
+        public static (double Width, double Height) GetWindowSize()
+        {
+            var config = LoadConfig();
+            return (config.WindowWidth, config.WindowHeight);
         }
         
         private static string GetExecutableDirectory()
