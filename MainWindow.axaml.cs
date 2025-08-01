@@ -818,7 +818,7 @@ namespace PetViewerLinux
             for (int i = 0; i < 1000; i++)
             {
                 string frameName = $"{i:D3}.png";
-                string filePath = System.IO.Path.Combine(GetAssetsDirectory(), animationPath, frameName);
+                string filePath = System.IO.Path.Combine(ConfigManager.GetAssetsPath(), animationPath, frameName);
                 
                 // Check if the file exists
                 if (File.Exists(filePath))
@@ -833,13 +833,6 @@ namespace PetViewerLinux
             }
             
             return frames;
-        }
-        
-        private string GetAssetsDirectory()
-        {
-            // Get the directory where the executable is located
-            string executablePath = AppContext.BaseDirectory;
-            return System.IO.Path.Combine(executablePath, "Assets");
         }
         
         // Memory optimization methods
@@ -1319,7 +1312,7 @@ namespace PetViewerLinux
         {
             if (_petImage != null)
             {
-                string filePath = System.IO.Path.Combine(GetAssetsDirectory(), framePath);
+                string filePath = System.IO.Path.Combine(ConfigManager.GetAssetsPath(), framePath);
                 var bitmap = LoadBitmapFromPath(filePath);
                 
                 if (bitmap != null)
@@ -1752,6 +1745,11 @@ namespace PetViewerLinux
                 resizeItem.Click += (s, e) => StartResizeMode();
                 settingsItem.Items.Add(resizeItem);
                 
+                // Add Mods option
+                var modsItem = new MenuItem { Header = "Mods" };
+                modsItem.Click += (s, e) => ShowModsMenu();
+                settingsItem.Items.Add(modsItem);
+                
                 contextMenu.Items.Add(settingsItem);
             }
             else
@@ -1863,6 +1861,148 @@ namespace PetViewerLinux
             // Resume normal operation
             _autoTriggerTimer.Interval = TimeSpan.FromSeconds(GetRandomIdleTime());
             _autoTriggerTimer.Start();
+        }
+        
+        private void ShowModsMenu()
+        {
+            var availableMods = ConfigManager.GetAvailableMods();
+            
+            if (availableMods.Count == 0)
+            {
+                // No mods found, show info message
+                ShowModMessage("No Mods Found", "No mod directories found in the application folder.\n\nTo add mods, place them in 'Assets-ModName' folders next to the application.");
+                return;
+            }
+            
+            // Create context menu with available mods
+            var contextMenu = new ContextMenu();
+            
+            // Add header
+            var headerItem = new MenuItem { Header = "🎨 Available Mods", IsEnabled = false };
+            contextMenu.Items.Add(headerItem);
+            contextMenu.Items.Add(new Separator());
+            
+            foreach (var modName in availableMods)
+            {
+                var modItem = new MenuItem { Header = modName };
+                modItem.Click += (s, e) => SelectMod(modName);
+                contextMenu.Items.Add(modItem);
+            }
+            
+            contextMenu.Open(this);
+        }
+        
+        private void SelectMod(string modName)
+        {
+            var assetsDirectoryName = $"Assets-{modName}";
+            
+            // Update config with new assets directory
+            ConfigManager.UpdateAssetsDirectory(assetsDirectoryName);
+            
+            // Show success message with restart option
+            ShowModMessage("Mod Selected", $"Mod '{modName}' has been set successfully!\n\nRestart the pet to apply changes.", true);
+        }
+        
+        private void ShowModMessage(string title, string message, bool showRestartButton = false)
+        {
+            var messageWindow = new Window
+            {
+                Title = title,
+                Width = 400,
+                Height = showRestartButton ? 180 : 150,
+                CanResize = false,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Topmost = true
+            };
+            
+            var panel = new StackPanel
+            {
+                Margin = new Thickness(20),
+                Spacing = 15
+            };
+            
+            var messageText = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
+            };
+            
+            panel.Children.Add(messageText);
+            
+            if (showRestartButton)
+            {
+                var buttonPanel = new StackPanel
+                {
+                    Orientation = Avalonia.Layout.Orientation.Horizontal,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                    Spacing = 10
+                };
+                
+                var restartButton = new Button
+                {
+                    Content = "Restart Now",
+                    Width = 100
+                };
+                restartButton.Click += (s, e) =>
+                {
+                    messageWindow.Close();
+                    RestartApplication();
+                };
+                
+                var laterButton = new Button
+                {
+                    Content = "Later",
+                    Width = 100
+                };
+                laterButton.Click += (s, e) => messageWindow.Close();
+                
+                buttonPanel.Children.Add(restartButton);
+                buttonPanel.Children.Add(laterButton);
+                panel.Children.Add(buttonPanel);
+            }
+            else
+            {
+                var okButton = new Button
+                {
+                    Content = "OK",
+                    Width = 80,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
+                };
+                okButton.Click += (s, e) => messageWindow.Close();
+                panel.Children.Add(okButton);
+            }
+            
+            messageWindow.Content = panel;
+            messageWindow.ShowDialog(this);
+        }
+        
+        private void RestartApplication()
+        {
+            try
+            {
+                // Get the current executable path
+                var currentExecutable = Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
+                
+                if (!string.IsNullOrEmpty(currentExecutable))
+                {
+                    // Start a new instance
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = currentExecutable,
+                        UseShellExecute = true
+                    });
+                }
+                
+                // Close current instance
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to restart application: {ex.Message}");
+                // Just close the current instance if restart fails
+                this.Close();
+            }
         }
         
         private void ShowDeveloperContextMenu()

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -18,6 +19,9 @@ namespace PetViewerLinux
         
         [JsonPropertyName("windowHeight")]
         public double WindowHeight { get; set; } = 300.0;
+        
+        [JsonPropertyName("assetsDirectory")]
+        public string AssetsDirectory { get; set; } = "Assets";
     }
     
     public static class ConfigManager
@@ -91,6 +95,57 @@ namespace PetViewerLinux
         {
             var config = LoadConfig();
             return (config.WindowWidth, config.WindowHeight);
+        }
+        
+        public static void UpdateAssetsDirectory(string assetsDirectory)
+        {
+            var config = LoadConfig();
+            config.AssetsDirectory = assetsDirectory;
+            SaveConfig(config);
+        }
+        
+        public static string GetAssetsDirectory()
+        {
+            var config = LoadConfig();
+            return config.AssetsDirectory;
+        }
+        
+        public static List<string> GetAvailableMods()
+        {
+            var modNames = new List<string>();
+            var baseDirectory = GetExecutableDirectory();
+            
+            try
+            {
+                if (Directory.Exists(baseDirectory))
+                {
+                    var directories = Directory.GetDirectories(baseDirectory, "Assets-*");
+                    foreach (var dir in directories)
+                    {
+                        var dirName = Path.GetFileName(dir);
+                        if (dirName.StartsWith("Assets-"))
+                        {
+                            var modName = dirName.Substring("Assets-".Length);
+                            if (!string.IsNullOrWhiteSpace(modName))
+                            {
+                                modNames.Add(modName);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to scan for mods: {ex.Message}");
+            }
+            
+            return modNames;
+        }
+        
+        public static string GetAssetsPath()
+        {
+            var assetsDirectory = GetAssetsDirectory();
+            return Path.Combine(GetExecutableDirectory(), assetsDirectory);
         }
         
         private static string GetExecutableDirectory()

@@ -17,7 +17,7 @@ public class StartupManager
     public Window StartApplication()
     {
         // Check if assets directory exists
-        string assetsPath = Path.Combine(AppContext.BaseDirectory, "Assets");
+        string assetsPath = ConfigManager.GetAssetsPath();
         
         if (!Directory.Exists(assetsPath))
         {
@@ -61,7 +61,7 @@ public class StartupManager
 
     private void CollectAllImagePaths()
     {
-        string assetsPath = Path.Combine(AppContext.BaseDirectory, "Assets");
+        string assetsPath = ConfigManager.GetAssetsPath();
         
         if (!Directory.Exists(assetsPath))
             return;
